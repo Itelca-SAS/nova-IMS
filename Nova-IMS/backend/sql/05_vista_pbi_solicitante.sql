@@ -49,7 +49,7 @@ SELECT
   sol.Segundo_Nombre AS segundo_nombre,
   sol.Primer_Apellido AS primer_apellido,
   sol.Segundo_Apellido AS segundo_apellido,
-  sol.ID_genero AS id_genero
+  g.Descripcion_genero AS genero
 FROM incidentes i
 JOIN eventos e ON e.ID_evento = i.ID_evento
 JOIN prioridades pr ON pr.ID_prioridad = i.ID_prioridad
@@ -58,4 +58,5 @@ JOIN origen o ON o.ID_Origen = i.ID_Origen
 JOIN agencias ag ON ag.IDAgencias = i.IDAgencias
 LEFT JOIN personas sol ON sol.ID_persona = (
   SELECT MIN(p.ID_persona) FROM personas p WHERE p.ID_incidente = i.ID_incidente
-);
+)
+LEFT JOIN genero g ON g.ID_genero = sol.ID_genero;
