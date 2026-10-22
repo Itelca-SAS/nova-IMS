@@ -19,6 +19,7 @@ El seed embebe DIVIPOLA CSJ (`departamentos` / `municipios`). No incluye datos o
 | `02_catalogos_referencia.sql` | Catálogos de referencia + DIVIPOLA (sin usuarios, correos ni incidentes) |
 | `03_fecha_cierre_incidentes.sql` | **Solo BD existentes**: agrega `incidentes.Fecha_cierre`, carga la fecha de los ya cerrados y actualiza `vw_reporte_incidentes_pbi` (en BD nuevas la columna ya viene en `01_schema.sql`) |
 | `04_historial_de_estado.sql` | **Solo BD existentes**: crea `historial_de_estado`, carga los cambios de estado desde `auditoria_incidente` y crea `vw_historial_de_estado` |
+| `05_vista_pbi_solicitante.sql` | Agrega los nombres, apellidos e `id_genero` del solicitante a `vw_reporte_incidentes_pbi` |
 | `import-db.js` | Ejecuta esquema + catálogos base |
 
 ## Instalación
