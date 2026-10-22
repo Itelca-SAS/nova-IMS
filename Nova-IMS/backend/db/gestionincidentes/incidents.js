@@ -1010,6 +1010,15 @@ async function tryDelete(conn, sql, params) {
   }
 }
 
+async function insertEstadoHistorial(conn, internalId, estadoAnteriorId, estadoNuevoId, userCtx, agency) {
+  await conn.query(
+    `INSERT INTO historial_de_estado
+      (ID_incidente, ID_estado_anterior, ID_estado_nuevo, ID_usuario, ID_Agencia)
+     VALUES (?,?,?,?,?)`,
+    [internalId, estadoAnteriorId, estadoNuevoId, userCtx?.userId ?? null, agency],
+  );
+}
+
 async function clearRecycledIncidentResidue(conn, internalId) {
   await conn.query(`DELETE FROM comentarios_incidentes WHERE ID_Incidente = ?`, [internalId]);
   await conn.query(`DELETE FROM auditoria_incidente WHERE incidentes_id = ?`, [internalId]);
@@ -1064,6 +1073,7 @@ async function createIncident(body, user) {
       internalId,
     ]);
     await clearRecycledIncidentResidue(conn, internalId);
+    await insertEstadoHistorial(conn, internalId, null, cats.estadoId, userCtx, cats.agency);
     if (body.comments) {
       const plain = extractNewCommentPlain(body.comments, '');
       if (plain) await insertComment(conn, internalId, plain, userCtx);
@@ -1248,6 +1258,10 @@ async function assertMedidasIfRequired(newStatus, visibleId, agencyCode) {
 
 async function persistIncidentUpdate(conn, internalId, body, userCtx, cats) {
   const coords = coordsForPersist(body);
+  const [[current]] = await conn.query(
+    `SELECT ID_estado FROM incidentes WHERE ID_incidente = ? FOR UPDATE`,
+    [internalId],
+  );
   await conn.query(
     `UPDATE incidentes SET
        ID_evento = ?, ID_Origen = ?, ANI = ?, Direccion = ?,
@@ -1274,6 +1288,9 @@ async function persistIncidentUpdate(conn, internalId, body, userCtx, cats) {
       internalId,
     ],
   );
+  if (current && current.ID_estado !== cats.estadoId) {
+    await insertEstadoHistorial(conn, internalId, current.ID_estado, cats.estadoId, userCtx, cats.agency);
+  }
   if (body.comments) {
     const prev = await loadComments(internalId);
     const plain = extractNewCommentPlain(body.comments, prev);

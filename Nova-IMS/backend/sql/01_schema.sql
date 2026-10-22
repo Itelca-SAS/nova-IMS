@@ -764,5 +764,23 @@ CREATE TABLE `incidente_medidas` (
   CONSTRAINT `fk_im_tipo_medida` FOREIGN KEY (`ID_tipo_medida`) REFERENCES `tipos_medida_seguridad` (`ID_tipo_medida`),
   CONSTRAINT `fk_im_usuario` FOREIGN KEY (`ID_usuario_asigna`, `ID_Agencia`) REFERENCES `usuarios` (`ID_Usuario`, `ID_Agencia`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+DROP TABLE IF EXISTS `historial_de_estado`;
+CREATE TABLE `historial_de_estado` (
+  `ID_historial` int NOT NULL AUTO_INCREMENT,
+  `ID_incidente` int NOT NULL,
+  `ID_estado_anterior` int DEFAULT NULL,
+  `ID_estado_nuevo` int NOT NULL,
+  `FechaHora` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `ID_usuario` varchar(20) DEFAULT NULL,
+  `ID_Agencia` varchar(5) NOT NULL,
+  PRIMARY KEY (`ID_historial`),
+  KEY `idx_historial_incidente` (`ID_incidente`,`FechaHora`),
+  KEY `idx_historial_fecha` (`FechaHora`),
+  CONSTRAINT `fk_historial_incidente` FOREIGN KEY (`ID_incidente`) REFERENCES `incidentes` (`ID_incidente`),
+  CONSTRAINT `fk_historial_estado_anterior` FOREIGN KEY (`ID_estado_anterior`) REFERENCES `estadosincidentes` (`ID_estado`),
+  CONSTRAINT `fk_historial_estado_nuevo` FOREIGN KEY (`ID_estado_nuevo`) REFERENCES `estadosincidentes` (`ID_estado`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;
 SET UNIQUE_CHECKS = 1;
