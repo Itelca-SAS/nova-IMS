@@ -5,7 +5,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 const http = require('node:http');
 const notificationsRoutes = require('./routes/notification.route');
-const { testConnection } = require('./config/db');
+const { pool, testConnection } = require('./config/db');
 const routes = require('./routes');
 const errorHandler = require('./middleware/errorHandler');
 const { authRequired } = require('./middleware/auth');
@@ -31,7 +31,14 @@ app.use(
 app.use(express.json({ limit: '2mb' }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
-app.get('/health', (req, res) => res.json({ status: 'ok', ts: Date.now() }));
+app.get('/health', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ status: 'ok', db: 'ok', ts: Date.now() });
+  } catch {
+    res.status(503).json({ status: 'error', db: 'unavailable', ts: Date.now() });
+  }
+});
 
 const locationRoutes = require('./routes/location.routes');
 app.use('/location', locationRoutes);
@@ -75,11 +82,10 @@ async function bootstrap() {
 
 bootstrap();
 
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM');
-  server.close(() => process.exit(0));
-});
-process.on('SIGINT', () => {
-  logger.info('SIGINT');
-  server.close(() => process.exit(0));
-});
+function shutdown(signal) {
+  logger.info(signal);
+  server.close(() => pool.end().finally(() => process.exit(0)));
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

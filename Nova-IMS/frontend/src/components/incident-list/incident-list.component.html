@@ -1576,12 +1576,14 @@
             } @else {
               <button
                 type="submit"
-                [disabled]="!hasPendingIncidentChanges()"
+                [disabled]="!canEdit() || !hasPendingIncidentChanges()"
                 class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-600/40 disabled:text-indigo-200/50 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded transition-colors"
                 [title]="
-                  hasPendingIncidentChanges()
-                    ? 'Guardar los cambios del incidente'
-                    : 'No hay cambios pendientes por guardar'
+                  !canEdit()
+                    ? 'Sin permiso para editar incidentes'
+                    : hasPendingIncidentChanges()
+                      ? 'Guardar los cambios del incidente'
+                      : 'No hay cambios pendientes por guardar'
                 "
               >
                 <span class="material-icons text-[20px] leading-none" aria-hidden="true">save</span>

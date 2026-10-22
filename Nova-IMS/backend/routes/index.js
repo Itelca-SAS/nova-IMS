@@ -129,12 +129,12 @@ router.get('/incidents/vehicle-lookup/:plate', incCtrl.lookupVehicleByPlate);
 router.get('/incidents/:id', incCtrl.getOne);
 router.post('/incidents/:id/send-email', perm.notify('Incidentes'), incCtrl.sendEmail);
 router.post('/incidents', perm.create('Incidentes'), incCtrl.create);
-router.put('/incidents/:id', incCtrl.update);
+router.put('/incidents/:id', perm.edit('Incidentes'), incCtrl.update);
 
 router.get('/people', peopleCtrl.list);
-router.post('/people', peopleCtrl.create);
-router.put('/people/:id', peopleCtrl.update);
-router.patch('/people/:id/status', peopleCtrl.setStatus);
+router.post('/people', perm.create('Administración'), peopleCtrl.create);
+router.put('/people/:id', perm.edit('Administración'), peopleCtrl.update);
+router.patch('/people/:id/status', perm.edit('Administración'), peopleCtrl.setStatus);
 router.get('/person-roles', peopleCtrl.personRoles);
 router.get('/judge-cargos', peopleCtrl.judgeCargos);
 router.get('/genders', peopleCtrl.genders);

@@ -334,7 +334,9 @@ const dashboardMetrics = asyncHandler(async (req, res) => {
 const list = asyncHandler(async (req, res) => {
   const agencyCode = requireSessionAgency(req);
   res.set('Cache-Control', 'no-store');
-  const rows = await giIncidents.listIncidents(100, agencyCode);
+  const rows = await giIncidents.listIncidents(agencyCode, {
+    closedLimit: Number(process.env.INCIDENTS_CLOSED_LIMIT) || 500,
+  });
   res.json(rows.map(mapIncidentRow));
 });
 

@@ -257,6 +257,10 @@ export class IncidentListComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.permissionService.canModuleAction('Incidentes', 'create');
   }
 
+  canEdit(): boolean {
+    return this.permissionService.canModuleAction('Incidentes', 'edit');
+  }
+
   canViewIncident(): boolean {
     return this.permissionService.canViewIncident('Incidentes');
   }
@@ -4821,7 +4825,7 @@ export class IncidentListComponent implements OnInit, AfterViewInit, OnDestroy {
   updateIncident() {
     this.pruneEmptyInvolvedEntries();
 
-    if (!this.activeIncident()) {
+    if (!this.activeIncident() || !this.canEdit()) {
       this.abortLeaveAfterSave();
       return;
     }

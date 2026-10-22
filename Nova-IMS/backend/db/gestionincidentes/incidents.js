@@ -224,6 +224,29 @@ async function loadComments(internalId) {
      ORDER BY ci.FechaHora ASC, ci.ID_Comentario ASC`,
     [internalId],
   );
+  return formatCommentRows(rows);
+}
+
+async function loadCommentsByIncident(internalIds, reader = pool) {
+  if (!internalIds.length) return {};
+  const ph = internalIds.map(() => '?').join(',');
+  const [rows] = await reader.query(
+    `SELECT ci.ID_Incidente AS internal_id, ci.Comentario, ci.FechaHora
+     FROM comentarios_incidentes ci
+     INNER JOIN incidentes i ON i.ID_incidente = ci.ID_Incidente
+     WHERE ci.ID_Incidente IN (${ph})
+       AND ci.FechaHora >= i.FechaHora
+     ORDER BY ci.ID_Incidente, ci.FechaHora ASC, ci.ID_Comentario ASC`,
+    internalIds,
+  );
+  const grouped = {};
+  for (const r of rows) (grouped[r.internal_id] ||= []).push(r);
+  return Object.fromEntries(
+    Object.entries(grouped).map(([id, list]) => [id, formatCommentRows(list)]),
+  );
+}
+
+function formatCommentRows(rows) {
   if (!rows.length) return '';
   const seen = new Set();
   const blocks = [];
@@ -403,6 +426,27 @@ async function fetchIncidentRows(whereSql, params, reader = pool) {
     params,
   );
   return rows;
+}
+
+async function latestLocationsByIncident(internalIds, reader = pool) {
+  if (!internalIds.length) return {};
+  const ph = internalIds.map(() => '?').join(',');
+  const [rows] = await reader.query(
+    `SELECT internal_id, received_lat, received_lng, received_at, location_phone
+     FROM (
+       SELECT ID_incidente AS internal_id, lat AS received_lat, \`long\` AS received_lng,
+              FechaHora_recibido AS received_at, Numero_ubicacion AS location_phone,
+              ROW_NUMBER() OVER (
+                PARTITION BY ID_incidente
+                ORDER BY FechaHora_recibido DESC, ID_solicitud DESC
+              ) AS rn
+       FROM ubicacion
+       WHERE ID_incidente IN (${ph})
+     ) t
+     WHERE rn = 1`,
+    internalIds,
+  );
+  return Object.fromEntries(rows.map(({ internal_id, ...loc }) => [internal_id, loc]));
 }
 
 async function latestLocationForIncident(internalId, visibleId, reader = pool) {
@@ -616,45 +660,46 @@ async function hydrateIncidents(rows, reader = pool) {
   if (!rows.length) return [];
   const internalIds = rows.map((r) => r.internal_id);
   await purgeStaleIncidentComments(internalIds, reader);
-  const [peopleMap, vehMap, placesMap] = await Promise.all([
+  const [peopleMap, vehMap, placesMap, commentsMap, locationsMap] = await Promise.all([
     loadInvolvedPeople(internalIds, reader),
     loadInvolvedVehicles(internalIds, reader),
     loadInvolvedPlaces(internalIds, reader),
+    loadCommentsByIncident(internalIds, reader),
+    latestLocationsByIncident(internalIds, reader),
   ]);
 
-  const out = [];
-  for (const r of rows) {
-    const comments = await loadComments(r.internal_id);
-    const loc = await latestLocationForIncident(r.internal_id, r.id, reader);
+  return rows.map((r) => {
     const incident = mapIncidentRow(r, {
-      comments,
-      ...loc,
+      comments: commentsMap[r.internal_id] || '',
+      ...locationsMap[r.internal_id],
       operator_name: r.operator_name || '',
     });
     incident.involvedPeople = groupedItems(peopleMap, r.internal_id);
     incident.involvedPlaces = groupedItems(placesMap, r.internal_id);
     incident.involvedVehicles = groupedItems(vehMap, r.internal_id);
-    out.push(incident);
-  }
-  return out;
+    return incident;
+  });
 }
 
-async function listIncidents(limit = 100, agencyCode = null) {
-  const agency = agencyCode ? normalizeAgencyCode(agencyCode) : null;
-  if (agency) {
-    const rows = await fetchIncidentRows(
-      `WHERE (i.ID_visible IS NULL OR i.ID_visible NOT LIKE 'CAT-PERS-%')
-         AND UPPER(i.IDAgencias) = ?
+async function listIncidents(agencyCode, { closedLimit = 500 } = {}) {
+  const agency = normalizeAgencyCode(agencyCode);
+  const closing = [...CLOSING_STATUSES];
+  const statusPh = closing.map(() => '?').join(',');
+  const baseWhere = `WHERE (i.ID_visible IS NULL OR i.ID_visible NOT LIKE 'CAT-PERS-%')
+       AND UPPER(i.IDAgencias) = ?`;
+  const [openRows, closedRows] = await Promise.all([
+    fetchIncidentRows(
+      `${baseWhere} AND es.Nombre_estado NOT IN (${statusPh})
+       ORDER BY i.ID_incidente DESC`,
+      [agency, ...closing],
+    ),
+    fetchIncidentRows(
+      `${baseWhere} AND es.Nombre_estado IN (${statusPh})
        ORDER BY i.ID_incidente DESC LIMIT ?`,
-      [agency, limit],
-    );
-    return hydrateIncidents(rows);
-  }
-  const rows = await fetchIncidentRows(
-    `WHERE (i.ID_visible IS NULL OR i.ID_visible NOT LIKE 'CAT-PERS-%')
-     ORDER BY i.ID_incidente DESC LIMIT ?`,
-    [limit],
-  );
+      [agency, ...closing, closedLimit],
+    ),
+  ]);
+  const rows = [...openRows, ...closedRows].sort((a, b) => b.internal_id - a.internal_id);
   return hydrateIncidents(rows);
 }
 
