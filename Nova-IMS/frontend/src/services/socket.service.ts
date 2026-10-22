@@ -1,4 +1,4 @@
-import { Injectable, signal, inject } from '@angular/core';
+import { Injectable, signal, inject, effect } from '@angular/core';
 import { io, Socket } from 'socket.io-client';
 import { AuthService } from './auth.service';
 import { socketUrl } from '../utils/api-base';
@@ -14,10 +14,8 @@ export class SocketService {
     this.socket = io(socketUrl(), {
       path: '/socket.io',
       transports: ['polling', 'websocket'],
-      auth: {
-        token: this.authService.getToken() || '',
-      },
-      autoConnect: true,
+      auth: (cb) => cb({ token: this.authService.getToken() || '' }),
+      autoConnect: false,
     });
 
     this.socket.on('connect', () => {
@@ -31,6 +29,12 @@ export class SocketService {
     this.socket.on('connect_error', (err) => {
       this.isConnected.set(false);
       console.error('Socket connection error:', err);
+    });
+
+    effect(() => {
+      const token = this.authService.token();
+      this.socket.disconnect();
+      if (token) this.socket.connect();
     });
   }
 

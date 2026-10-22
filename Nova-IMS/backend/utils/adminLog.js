@@ -13,7 +13,7 @@ async function writeAdminLog(jwtUser, action, details, req = null, meta = {}) {
     resultado: 'exitoso',
   });
 
-  socket.emit('admin:log', {
+  socket.emitToAgency(jwtUser?.agency_code, 'admin:log', {
     id,
     user: jwtUser?.name || 'Sistema',
     action,

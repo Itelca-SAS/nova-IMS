@@ -34,6 +34,12 @@ const STATUS_CERRADO = 'Cerrado';
 const STATUS_EN_EVALUACION_CERREM = 'En gestión UNP';
 const STATUS_ENVIADO_CERREM = 'En gestión UNP';
 
+const CLOSING_STATUSES = new Set(['Cerrado', 'Resuelto', 'Cancelado']);
+
+function isClosingStatus(statusName) {
+  return CLOSING_STATUSES.has(String(statusName || '').trim());
+}
+
 const USER_DISPLAY_NAME_SQL = `TRIM(CONCAT(
   u.Primer_Nombre, ' ',
   IFNULL(CONCAT(u.Segundo_Nombre, ' '), ''),
@@ -381,7 +387,7 @@ async function resolveCatalogIds(agencyCode, body) {
     );
   }
 
-  return { eventoId, estadoId, prioridadId, origenId, agency };
+  return { eventoId, estadoId, statusName, prioridadId, origenId, agency };
 }
 
 function formatVisibleId(internalId) {
@@ -1032,8 +1038,9 @@ async function createIncident(body, user) {
     const [result] = await conn.query(
       `INSERT INTO incidentes
         (FechaHora, ID_evento, ID_Origen, ANI, Direccion, Latitud, Longitud,
-         IDAgencias, ID_visible, id_departamento, id_municipio, ID_estado, ID_prioridad)
-       VALUES (NOW(),?,?,?,?,?,?,?,?,?,?,?,?)`,
+         IDAgencias, ID_visible, id_departamento, id_municipio, ID_estado, ID_prioridad,
+         Fecha_cierre)
+       VALUES (NOW(),?,?,?,?,?,?,?,?,?,?,?,?, IF(?, NOW(), NULL))`,
       [
         cats.eventoId,
         cats.origenId,
@@ -1047,6 +1054,7 @@ async function createIncident(body, user) {
         body.municipalityId ?? body.municipality_id ?? null,
         cats.estadoId,
         cats.prioridadId,
+        isClosingStatus(cats.statusName),
       ],
     );
     const internalId = result.insertId;
@@ -1246,7 +1254,8 @@ async function persistIncidentUpdate(conn, internalId, body, userCtx, cats) {
        Latitud = CASE WHEN ? IS NULL THEN Latitud ELSE ? END,
        Longitud = CASE WHEN ? IS NULL THEN Longitud ELSE ? END,
        id_departamento = ?, id_municipio = ?,
-       ID_estado = ?, ID_prioridad = ?
+       ID_estado = ?, ID_prioridad = ?,
+       Fecha_cierre = CASE WHEN ? THEN COALESCE(Fecha_cierre, NOW()) ELSE NULL END
      WHERE ID_incidente = ?`,
     [
       cats.eventoId,
@@ -1261,6 +1270,7 @@ async function persistIncidentUpdate(conn, internalId, body, userCtx, cats) {
       body.municipalityId ?? body.municipality_id ?? null,
       cats.estadoId,
       cats.prioridadId,
+      isClosingStatus(cats.statusName),
       internalId,
     ],
   );

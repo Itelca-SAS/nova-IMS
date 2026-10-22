@@ -8,8 +8,16 @@ const notificationsRoutes = require('./routes/notification.route');
 const { testConnection } = require('./config/db');
 const routes = require('./routes');
 const errorHandler = require('./middleware/errorHandler');
+const { authRequired } = require('./middleware/auth');
 const socket = require('./realtime/socket');
 const logger = require('./utils/logger');
+const { validateEnv } = require('./config/validateEnv');
+
+const envErrors = validateEnv();
+if (envErrors.length) {
+  envErrors.forEach((msg) => logger.error('[CONFIG]', msg));
+  process.exit(1);
+}
 
 const app = express();
 const server = http.createServer(app);
@@ -30,7 +38,7 @@ app.use('/location', locationRoutes);
 
 app.use('/api', routes);
 
-app.use('/api/notifications', notificationsRoutes);
+app.use('/api/notifications', authRequired, notificationsRoutes);
 
 app.use((req, res) => res.status(404).json({ error: { message: 'Ruta no encontrada' } }));
 app.use(errorHandler);

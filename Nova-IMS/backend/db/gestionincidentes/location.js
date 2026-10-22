@@ -4,6 +4,11 @@ const { locationChannelToGi, locationChannelFromGi } = require('./maps');
 const { resolveActorForDb } = require('../../utils/jwtUser');
 const { requireAgencyInput } = require('./agencyContext');
 
+function requestUrlSuffixPattern(requestId) {
+  const escaped = String(requestId).replace(/[\\%_]/g, (c) => `\\${c}`);
+  return `%request_id=${escaped}`;
+}
+
 const NO_DB_USER_MSG =
   'No se pudo registrar el operador de esta sesión en MySQL. Verifique LDAP_DEFAULT_ROLE_ID y LDAP_DEFAULT_AGENCY_CODE en backend/.env.';
 
@@ -14,7 +19,7 @@ async function createLocationRequest({ phone, channel, incidentId, user, request
     throw new HttpError(400, NO_DB_USER_MSG);
   }
   const { getInternalId } = require('./incidents');
-  const internalIncident = incidentId ? await getInternalId(incidentId) : null;
+  const internalIncident = incidentId ? await getInternalId(incidentId, actor.agencyCode) : null;
 
   const [result] = await pool.query(
     `INSERT INTO ubicacion
@@ -32,12 +37,17 @@ async function createLocationRequest({ phone, channel, incidentId, user, request
   return result.insertId;
 }
 
-async function receiveLocation(id, lat, lng) {
+async function receiveLocation(id, lat, lng, agencyCode) {
+  const agency = requireAgencyInput(agencyCode);
   await pool.query(
-    `UPDATE ubicacion SET lat = ?, \`long\` = ?, FechaHora_recibido = NOW() WHERE ID_solicitud = ?`,
-    [lat, lng, id],
+    `UPDATE ubicacion SET lat = ?, \`long\` = ?, FechaHora_recibido = NOW()
+     WHERE ID_solicitud = ? AND UPPER(ID_Agencia) = UPPER(?)`,
+    [lat, lng, id, agency],
   );
-  const [rows] = await pool.query(`SELECT * FROM ubicacion WHERE ID_solicitud = ?`, [id]);
+  const [rows] = await pool.query(
+    `SELECT * FROM ubicacion WHERE ID_solicitud = ? AND UPPER(ID_Agencia) = UPPER(?)`,
+    [id, agency],
+  );
   if (!rows.length) return null;
   const r = rows[0];
   return {
@@ -54,13 +64,17 @@ async function getLocationRequest(id) {
   return rows[0] || null;
 }
 
-async function listLocationRequests() {
+async function listLocationRequests(agencyCode) {
+  const agency = requireAgencyInput(agencyCode);
   const [rows] = await pool.query(
     `SELECT ID_solicitud AS id, Numero_ubicacion AS phone,
             LOWER(Canal) AS channel, url_peticion AS requestUrl,
             lat AS lat, \`long\` AS lng,
             FechaHora_recibido AS receivedAt, FechaHora_envio AS createdAt
-     FROM ubicacion ORDER BY FechaHora_envio DESC LIMIT 100`,
+     FROM ubicacion
+     WHERE UPPER(ID_Agencia) = UPPER(?)
+     ORDER BY FechaHora_envio DESC LIMIT 100`,
+    [agency],
   );
   return rows.map((r) => ({
     ...r,
@@ -76,7 +90,7 @@ async function updateLocationByRequestUrl(requestId, lat, lng, address = null) {
     params.push(String(address).substring(0, 100));
   }
   sql += ` WHERE url_peticion LIKE ?`;
-  params.push(`%request_id=${requestId}%`);
+  params.push(requestUrlSuffixPattern(requestId));
   await pool.query(sql, params);
 }
 
@@ -100,7 +114,7 @@ async function linkLocationToIncident(
     const [r] = await executor.query(
       `UPDATE ubicacion SET ID_incidente = ?
        WHERE url_peticion LIKE ? AND ID_incidente IS NULL`,
-      [internalIncidentId, `%request_id=${requestId}%`],
+      [internalIncidentId, requestUrlSuffixPattern(requestId)],
     );
     if (r.affectedRows > 0) return r.affectedRows;
   }
@@ -128,7 +142,7 @@ async function linkLocationToIncident(
 async function findByRequestUrlPattern(requestId) {
   const [rows] = await pool.query(
     `SELECT * FROM ubicacion WHERE url_peticion LIKE ? ORDER BY ID_solicitud DESC LIMIT 1`,
-    [`%request_id=${requestId}%`],
+    [requestUrlSuffixPattern(requestId)],
   );
   return rows[0] || null;
 }

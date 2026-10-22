@@ -6,7 +6,7 @@ const { resolveDbUserIdFromString } = require('../utils/jwtUser');
 
 router.get('/', async (req, res) => {
   try {
-    res.json(await giNotifications.listNotifications());
+    res.json(await giNotifications.listNotifications(req.user?.agency_code));
   } catch (error) {
     logger.error('Error obteniendo notificaciones:', error);
     res.status(500).json({ error: 'Error obteniendo notificaciones' });
@@ -37,8 +37,7 @@ router.patch('/mark-all-read', markAllAsRead);
 
 async function markAllAsRead(req, res) {
   try {
-    const { userId } = req.body;
-    const userIdDb = await resolveDbUserIdFromString(userId);
+    const userIdDb = await resolveDbUserIdFromString(req.user?.sub);
     await giNotifications.markAllRead(userIdDb, req.user?.agency_code);
     res.json({ success: true });
   } catch (error) {

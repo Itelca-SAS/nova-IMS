@@ -243,6 +243,7 @@ DROP TABLE IF EXISTS `incidentes`;
 CREATE TABLE `incidentes` (
   `ID_incidente` int NOT NULL AUTO_INCREMENT,
   `FechaHora` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `Fecha_cierre` datetime DEFAULT NULL,
   `ID_evento` int NOT NULL,
   `ID_Origen` int NOT NULL,
   `ANI` varchar(50) DEFAULT NULL,
@@ -273,6 +274,7 @@ CREATE TABLE `incidentes` (
   KEY `idx_id_municipio` (`id_municipio`),
   KEY `fk_estado_incidente` (`ID_estado`),
   KEY `idx_lugar` (`ID_lugar`),
+  KEY `idx_fecha_cierre` (`Fecha_cierre`),
   CONSTRAINT `fk_estado_incidente` FOREIGN KEY (`ID_estado`) REFERENCES `estadosincidentes` (`ID_estado`),
   CONSTRAINT `fk_incidente_departamento` FOREIGN KEY (`id_departamento`) REFERENCES `departamentos` (`id_departamento`) ON DELETE RESTRICT,
   CONSTRAINT `fk_incidente_lugar` FOREIGN KEY (`ID_lugar`) REFERENCES `lugares` (`ID_lugar`),

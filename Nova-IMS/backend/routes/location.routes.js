@@ -8,6 +8,8 @@ const { reverseGeocode } = require('../services/geocode.service');
 const { recordAudit } = require('../utils/auditTrail');
 const logger = require('../utils/logger');
 
+const REQUEST_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 async function auditLocationReceived(row, { lat, lng, address }) {
   try {
     if (!row?.ID_usuario) return;
@@ -41,8 +43,16 @@ router.post('/submit', async (req, res) => {
   if (!request_id || typeof lat !== 'number' || typeof lng !== 'number') {
     return res.status(400).json({ error: 'request_id, lat y lng son requeridos' });
   }
+  if (!REQUEST_ID_RE.test(String(request_id))) {
+    return res.status(400).json({ error: 'request_id inválido' });
+  }
 
   try {
+    const existing = await giLocation.findByRequestUrlPattern(String(request_id));
+    if (!existing) {
+      return res.status(404).json({ error: 'Solicitud no encontrada' });
+    }
+
     const address = await reverseGeocode(lat, lng);
     await giLocation.updateLocationByRequestUrl(String(request_id), lat, lng, address);
 
@@ -57,7 +67,7 @@ router.post('/submit', async (req, res) => {
       timestamp: Date.now(),
     };
     logger.debug('[LOCATION] Socket location:received', payload);
-    socket.get().emit('location:received', payload);
+    socket.emitToAgency(row?.ID_Agencia, 'location:received', payload);
 
     await auditLocationReceived(row, { lat, lng, address });
 

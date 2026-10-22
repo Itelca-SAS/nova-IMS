@@ -6,7 +6,8 @@ const { normalizeAgencyCode } = require('./maps');
 const { requireAgencyInput } = require('./agencyContext');
 const { ensureEmailStatusColumn, normalizeEmailStatus } = require('./correosSchema');
 
-async function listNotifications() {
+async function listNotifications(agencyCode) {
+  const agency = requireAgencyInput(agencyCode);
   const [rows] = await pool.query(
     `SELECT n.id_notificaciones AS id,
             i.ID_visible AS incident_id,
@@ -19,8 +20,10 @@ async function listNotifications() {
      FROM notificaciones_usuarios n
      LEFT JOIN incidentes i ON i.ID_incidente = n.incidente_id
      LEFT JOIN usuarios u ON u.ID_Usuario = n.triggered_by AND u.ID_Agencia = n.ID_agencia
+     WHERE UPPER(n.ID_agencia) = ?
      ORDER BY n.fecha_creacion DESC
      LIMIT 50`,
+    [normalizeAgencyCode(agency)],
   );
   return rows;
 }
@@ -42,7 +45,7 @@ async function createNotification({
   if (!actor?.userId) {
     return;
   }
-  const internalIncident = incidentId ? await getInternalId(incidentId) : null;
+  const internalIncident = incidentId ? await getInternalId(incidentId, agency) : null;
 
   await pool.query(
     `INSERT INTO notificaciones_usuarios
@@ -54,16 +57,11 @@ async function createNotification({
 
 async function markAllRead(userId, agencyCode) {
   const ctx = await resolveUserContext(userId, agencyCode);
-  if (ctx.userId) {
+  if (ctx?.userId) {
     await pool.query(
       `UPDATE notificaciones_usuarios SET fue_leida = 1, fecha_visualizacion = NOW()
        WHERE fue_leida = 0 AND ID_usuario = ? AND UPPER(ID_agencia) = ?`,
       [ctx.userId, ctx.agencyCode],
-    );
-  } else {
-    await pool.query(
-      `UPDATE notificaciones_usuarios SET fue_leida = 1, fecha_visualizacion = NOW()
-       WHERE fue_leida = 0`,
     );
   }
 }

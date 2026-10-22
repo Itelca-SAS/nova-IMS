@@ -1,4 +1,6 @@
 
+const crypto = require('node:crypto');
+
 const OTP_EXPIRY_MS = 10 * 60 * 1000; // 10 minutos
 const MAX_ATTEMPTS = 5;
 
@@ -11,7 +13,7 @@ function keyFor(userId, purpose = 'login') {
 function generate(userId, options = {}) {
   const purpose = options.purpose || 'login';
   const key = keyFor(userId, purpose);
-  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const code = String(crypto.randomInt(100000, 1000000));
   const prev = store.get(key);
   store.set(key, {
     code,
@@ -20,6 +22,12 @@ function generate(userId, options = {}) {
     loginRegistroId: options.loginRegistroId ?? prev?.loginRegistroId ?? null,
   });
   return code;
+}
+
+function codesMatch(expected, received) {
+  const a = Buffer.from(expected);
+  const b = Buffer.from(received);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
 function getLoginRegistroId(userId) {
@@ -44,7 +52,7 @@ function verify(userId, inputCode, purpose = 'login') {
     return { ok: false, reason: 'too_many_attempts' };
   }
 
-  if (entry.code !== String(inputCode).trim()) {
+  if (!codesMatch(entry.code, String(inputCode).trim())) {
     entry.attempts += 1;
     return { ok: false, reason: 'invalid_code' };
   }
@@ -61,6 +69,6 @@ setInterval(
     }
   },
   15 * 60 * 1000,
-);
+).unref();
 
 module.exports = { generate, verify, getLoginRegistroId };

@@ -391,7 +391,7 @@ const create = asyncHandler(async (req, res) => {
   const agencyCode = requireSessionAgency(req);
   const inc = mapIncidentRow(await giIncidents.getIncident(visibleId, agencyCode));
   inc.operator = actorName;
-  socket.emit('incident:created', inc);
+  socket.emitToAgency(agencyCode, 'incident:created', inc);
   res.status(201).json(inc);
 });
 
@@ -481,7 +481,7 @@ const update = asyncHandler(async (req, res) => {
   const after = mapIncidentRow(await giIncidents.getIncident(id, agencyCode));
   after.operator = actorName;
 
-  socket.emit('incident:updated', after);
+  socket.emitToAgency(agencyCode, 'incident:updated', after);
   res.json(after);
 });
 

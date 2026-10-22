@@ -27,6 +27,26 @@ const auditClientCtrl = require('../controllers/auditClient.controller');
 const medidas = require('../db/gestionincidentes/medidas');
 const giIncidents = require('../db/gestionincidentes/incidents');
 const { sessionDisplayName } = require('../utils/jwtUser');
+const HttpError = require('../utils/HttpError');
+const rateLimit = require('../middleware/rateLimit');
+
+const FIFTEEN_MIN = 15 * 60 * 1000;
+const loginLimiter = rateLimit({ name: 'login', windowMs: FIFTEEN_MIN, max: 10 });
+const otpLimiter = rateLimit({ name: 'otp', windowMs: FIFTEEN_MIN, max: 10 });
+const forgotLimiter = rateLimit({ name: 'forgot', windowMs: FIFTEEN_MIN, max: 5 });
+const resetLimiter = rateLimit({ name: 'reset', windowMs: FIFTEEN_MIN, max: 10 });
+const changeCredLimiter = rateLimit({ name: 'change-cred', windowMs: FIFTEEN_MIN, max: 10 });
+
+async function requireIncidentInAgency(req, res, next) {
+  try {
+    const agency = req.user?.agency_code || req.user?.agency;
+    const internalId = agency ? await giIncidents.getInternalId(req.params.id, agency) : null;
+    if (!internalId) return next(new HttpError(404, 'Incidente no encontrado'));
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
 
 async function writeIncidentAudit(incidentId, user, { action, changes, details }) {
   if (!details?.length) return;
@@ -41,11 +61,15 @@ async function writeIncidentAudit(incidentId, user, { action, changes, details }
 }
 
 router.get('/config/public', configCtrl.publicConfig);
-router.post('/auth/login', authCtrl.login);
-router.post('/auth/verify-otp', authCtrl.verifyOtp);
-router.post('/auth/forgot-password', authCtrl.forgotPassword);
-router.post('/auth/reset-password', authCtrl.resetPassword);
-router.post('/auth/change-password-credentials', authCtrl.changePasswordWithCredentials);
+router.post('/auth/login', loginLimiter, authCtrl.login);
+router.post('/auth/verify-otp', otpLimiter, authCtrl.verifyOtp);
+router.post('/auth/forgot-password', forgotLimiter, authCtrl.forgotPassword);
+router.post('/auth/reset-password', resetLimiter, authCtrl.resetPassword);
+router.post(
+  '/auth/change-password-credentials',
+  changeCredLimiter,
+  authCtrl.changePasswordWithCredentials,
+);
 router.get('/auth/ldap-health', authCtrl.ldapHealth);
 router.get('/agencies', catCtrl.agencies);
 router.get('/login/options', catCtrl.loginOptions);
@@ -104,7 +128,7 @@ router.get('/incidents/dashboard-metrics', incCtrl.dashboardMetrics);
 router.get('/incidents/vehicle-lookup/:plate', incCtrl.lookupVehicleByPlate);
 router.get('/incidents/:id', incCtrl.getOne);
 router.post('/incidents/:id/send-email', perm.notify('Incidentes'), incCtrl.sendEmail);
-router.post('/incidents', incCtrl.create);
+router.post('/incidents', perm.create('Incidentes'), incCtrl.create);
 router.put('/incidents/:id', incCtrl.update);
 
 router.get('/people', peopleCtrl.list);
@@ -120,26 +144,26 @@ router.get('/telephony/lookup/:phone', peopleCtrl.lookupByPhone);
 router.get('/people/lookup/document/:documentId', peopleCtrl.lookupByDocument);
 
 router.get('/operators', opCtrl.list);
-router.post('/operators', opCtrl.create);
-router.put('/operators/:id', opCtrl.update);
+router.post('/operators', perm.create('Administración'), opCtrl.create);
+router.put('/operators/:id', perm.edit('Administración'), opCtrl.update);
 
 router.get('/incident-types', typeCtrl.list);
-router.post('/incident-types', typeCtrl.create);
-router.put('/incident-types/:id', typeCtrl.update);
+router.post('/incident-types', perm.create('Administración'), typeCtrl.create);
+router.put('/incident-types/:id', perm.edit('Administración'), typeCtrl.update);
 
 router.get('/response-protocols', protoCtrl.list);
-router.post('/response-protocols', protoCtrl.create);
-router.put('/response-protocols/:id', protoCtrl.update);
+router.post('/response-protocols', perm.create('Administración'), protoCtrl.create);
+router.put('/response-protocols/:id', perm.edit('Administración'), protoCtrl.update);
 
 router.get('/notification-emails', notifCtrl.list);
-router.post('/notification-emails', notifCtrl.add);
-router.patch('/notification-emails/:email/status', notifCtrl.setStatus);
+router.post('/notification-emails', perm.create('Administración'), notifCtrl.add);
+router.patch('/notification-emails/:email/status', perm.edit('Administración'), notifCtrl.setStatus);
 
-router.get('/roles', roleCtrl.list);
-router.post('/roles', roleCtrl.create);
-router.put('/roles/:id', roleCtrl.update);
+router.get('/roles', perm.view('Administración'), roleCtrl.list);
+router.post('/roles', perm.create('Administración'), roleCtrl.create);
+router.put('/roles/:id', perm.edit('Administración'), roleCtrl.update);
 
-router.get('/admin-logs', logCtrl.adminLogs);
+router.get('/admin-logs', perm.view('Administración'), logCtrl.adminLogs);
 router.get('/audit-logs', logCtrl.auditLogs);
 router.get('/users-audit-summary', perm.view('Administración'), logCtrl.usersAuditSummary);
 router.get('/users-audit-summary/:userId/actions', perm.view('Administración'), logCtrl.userActions);
@@ -173,7 +197,7 @@ router.get('/medidas/tipos', async (req, res, next) => {
   }
 });
 
-router.get('/incidents/:id/medidas', async (req, res, next) => {
+router.get('/incidents/:id/medidas', requireIncidentInAgency, async (req, res, next) => {
   try {
     const solicitud = await medidas.getSolicitudFromPersonas(req.params.id);
     const gestion = await medidas.getGestionByIncidente(req.params.id);
@@ -187,7 +211,7 @@ router.get('/incidents/:id/medidas', async (req, res, next) => {
   }
 });
 
-router.post('/incidents/:id/gestion', async (req, res, next) => {
+router.post('/incidents/:id/gestion', requireIncidentInAgency, async (req, res, next) => {
   try {
     const visibleId = req.params.id;
     const beforeGestion = await medidas.getGestionByIncidente(visibleId);
@@ -223,7 +247,7 @@ router.post('/incidents/:id/gestion', async (req, res, next) => {
   }
 });
 
-router.post('/incidents/:id/medidas', async (req, res, next) => {
+router.post('/incidents/:id/medidas', requireIncidentInAgency, async (req, res, next) => {
   try {
     const visibleId = req.params.id;
     let gestion = await medidas.getGestionByIncidente(visibleId);

@@ -1,3 +1,4 @@
+const crypto = require('node:crypto');
 const HttpError = require('../utils/HttpError');
 const asyncHandler = require('../utils/asyncHandler');
 const socket = require('../realtime/socket');
@@ -11,7 +12,7 @@ exports.create = asyncHandler(async (req, res) => {
     throw new HttpError(400, 'phone y channel (whatsapp|sms) son requeridos');
   }
   const clean = String(phone).replace(/\D/g, '');
-  const requestId = Date.now();
+  const requestId = crypto.randomUUID();
   const requestUrl = await buildLocationShareUrlAsync(requestId);
   const publicUrlWarning = publicUrlSetupHint(requestUrl);
 
@@ -53,12 +54,12 @@ exports.receive = asyncHandler(async (req, res) => {
   if (typeof lat !== 'number' || typeof lng !== 'number') {
     throw new HttpError(400, 'lat/lng numéricos requeridos');
   }
-  const payload = await giLocation.receiveLocation(id, lat, lng);
+  const payload = await giLocation.receiveLocation(id, lat, lng, req.user?.agency_code);
   if (!payload) throw new HttpError(404, 'Solicitud no encontrada');
-  socket.emit('location:received', payload);
+  socket.emitToAgency(req.user?.agency_code, 'location:received', payload);
   res.json(payload);
 });
 
 exports.list = asyncHandler(async (req, res) => {
-  res.json(await giLocation.listLocationRequests());
+  res.json(await giLocation.listLocationRequests(req.user?.agency_code));
 });

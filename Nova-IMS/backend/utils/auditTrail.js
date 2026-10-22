@@ -67,7 +67,7 @@ async function recordAudit(entry = {}) {
     );
 
     const id = result?.insertId ?? null;
-    socket.emit('audit:log', {
+    socket.emitToAgency(agencia, 'audit:log', {
       id,
       user: nombre || idUsuario || 'Sistema',
       category: cat,
