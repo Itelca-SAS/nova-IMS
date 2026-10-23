@@ -1,5 +1,6 @@
 import { environment } from '../environments/environment';
 import { isLoopbackUrl } from './public-url-shared';
+import { trimTrailingSlashes } from './text-match';
 
 export function resolvePublicShareUrl(rawUrl: string): string {
   const url = String(rawUrl || '').trim();
@@ -9,9 +10,7 @@ export function resolvePublicShareUrl(rawUrl: string): string {
     const parsed = new URL(url);
     if (!isLoopbackUrl(parsed.href)) return url;
 
-    const base = String(environment.publicShareBaseUrl || '')
-      .trim()
-      .replace(/\/+$/, '');
+    const base = trimTrailingSlashes(String(environment.publicShareBaseUrl || '').trim());
     if (!base) return url;
 
     const publicBase = new URL(base);

@@ -1,3 +1,5 @@
+import { parseBracketHeader } from './text-match';
+
 export const INCIDENT_NOTE_SEPARATOR = '\n---\n';
 
 export interface IncidentNoteEntry {
@@ -6,7 +8,6 @@ export interface IncidentNoteEntry {
   text: string;
 }
 
-const HEADER_RE = /^\[([^\]]+)\]\s*(.*)$/;
 const TIMESTAMP_ONLY_RE = /^\[([^\]]+)\]$/;
 
 function parseSingleNoteBlock(block: string): IncidentNoteEntry {
@@ -19,18 +20,18 @@ function parseSingleNoteBlock(block: string): IncidentNoteEntry {
   const header = (lines[0] || '').trim();
   const body = lines.slice(1).join('\n').trim();
 
-  const withAuthor = HEADER_RE.exec(header);
+  const withAuthor = parseBracketHeader(header);
   if (withAuthor) {
-    const author = withAuthor[2].trim();
+    const author = withAuthor[1].trim();
     if (!body && author) {
       return {
-        timestamp: withAuthor[1].trim(),
+        timestamp: withAuthor[0].trim(),
         author: 'Operador',
         text: author,
       };
     }
     return {
-      timestamp: withAuthor[1].trim(),
+      timestamp: withAuthor[0].trim(),
       author: author || 'Operador',
       text: body || '',
     };
@@ -160,7 +161,7 @@ export function displayCommentBody(text: string, authorHint?: string): string {
 
   body = body.replace(/^\d{1,2}\/\d{1,2}\/\d{2,4},\s*\d{1,2}:\d{2}(?::\d{2})?\s*:\s*/i, '');
 
-  const headerMatch = /^\[([^\]]+)\]\s*([\s\S]*)$/.exec(body);
+  const headerMatch = /^\[([^\]]+)\]([\s\S]*)$/.exec(body);
   if (headerMatch) {
     const rest = String(headerMatch[2] ?? '').trim();
     if (rest.includes('\n')) {

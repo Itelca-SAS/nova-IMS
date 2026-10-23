@@ -107,6 +107,7 @@ import {
   parseDmyDateTime,
 } from '../../utils/incident-notes';
 import { AuditLog } from '../../models/admin.model';
+import { splitLabelColon, splitParenSuffix, textAfterMarker } from '../../utils/text-match';
 import {
   IncidentLocationCoordSync,
   geoCatalogNamesLooselyEqual,
@@ -1605,9 +1606,9 @@ export class IncidentListComponent implements OnInit, AfterViewInit, OnDestroy {
         new: detail.new.trim(),
       };
     }
-    const match = /->\s*(.+)$/i.exec(log.action);
-    if (match && /estado/i.test(log.action)) {
-      return { old: 'Nuevo', new: match[1].trim() };
+    const statusTo = textAfterMarker(String(log.action ?? ''), '->');
+    if (statusTo !== null && /estado/i.test(log.action)) {
+      return { old: 'Nuevo', new: statusTo.trim() };
     }
     return null;
   }
@@ -3087,13 +3088,11 @@ export class IncidentListComponent implements OnInit, AfterViewInit, OnDestroy {
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }
 
-  private readonly statusArrowRe = /→\s*(.+)$/;
-
   private logChangedStatusTo(log: AuditLog, uiStatus: string): boolean {
     const detail = (log.details ?? []).find((d) => /estado/i.test(String(d.field ?? '')));
     if (detail) return catalogStatusToUiStatus(String(detail.new ?? '').trim()) === uiStatus;
-    const m = this.statusArrowRe.exec(String(log.action ?? ''));
-    return m ? catalogStatusToUiStatus(m[1].trim()) === uiStatus : false;
+    const statusTo = textAfterMarker(String(log.action ?? ''), '→');
+    return statusTo !== null ? catalogStatusToUiStatus(statusTo.trim()) === uiStatus : false;
   }
 
   reiteracionesCount(incident: Incident | null | undefined): number {
@@ -3619,13 +3618,13 @@ export class IncidentListComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private toLeaveConfirmChangeItem(text: string): LeaveConfirmChangeItem {
     const trimmed = text.trim();
-    const paren = /^(.+?)\s*\((.+)\)\s*$/.exec(trimmed);
+    const paren = splitParenSuffix(trimmed);
     if (paren) {
-      return { label: paren[1].trim(), detail: paren[2].trim() };
+      return { label: paren[0].trim(), detail: paren[1].trim() };
     }
-    const colon = /^([^:]{1,48}):\s*(.+)$/.exec(trimmed);
+    const colon = splitLabelColon(trimmed);
     if (colon) {
-      return { label: colon[1].trim(), detail: colon[2].trim() };
+      return { label: colon[0].trim(), detail: colon[1].trim() };
     }
     return { label: trimmed };
   }

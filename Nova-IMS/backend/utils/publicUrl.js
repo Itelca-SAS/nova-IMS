@@ -1,6 +1,7 @@
 
 const http = require('node:http');
 const logger = require('./logger');
+const { trimTrailingSlashes } = require('./textMatch');
 
 function isLoopbackHost(hostname) {
   const h = String(hostname || '').toLowerCase();
@@ -16,9 +17,7 @@ function isLoopbackUrl(url) {
 }
 
 function normalizeBaseUrl(raw) {
-  return String(raw || '')
-    .trim()
-    .replace(/\/+$/, '');
+  return trimTrailingSlashes(String(raw || '').trim());
 }
 
 function isPlaceholderUrl(url) {

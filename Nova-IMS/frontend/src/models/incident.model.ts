@@ -133,7 +133,7 @@ export function isVisibleInActiveViews(status: string | null | undefined): boole
 export function incidentIdSortKey(id: string | null | undefined): number {
   const raw = String(id ?? '').trim();
   // INC-00000018-26 → 18; INC-0000022 → 22 (no usar el sufijo de año)
-  const labeled = /^INC-0*(\d+)(?:-\d+)?$/i.exec(raw);
+  const labeled = /^INC-(\d+)(?:-\d+)?$/i.exec(raw);
   if (labeled) {
     const n = Number.parseInt(labeled[1], 10);
     return Number.isFinite(n) ? n : 0;

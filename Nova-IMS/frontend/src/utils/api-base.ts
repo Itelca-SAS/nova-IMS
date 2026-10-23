@@ -1,7 +1,8 @@
 import { environment } from '../environments/environment';
+import { trimTrailingSlashes } from './text-match';
 
 export function apiBaseUrl(): string {
-  return String(environment.apiUrl || '').replace(/\/+$/, '');
+  return trimTrailingSlashes(String(environment.apiUrl || ''));
 }
 
 export function apiUrl(path: string): string {

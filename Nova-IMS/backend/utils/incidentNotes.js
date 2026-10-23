@@ -1,5 +1,5 @@
+const { parseBracketHeader } = require('./textMatch');
 const INCIDENT_NOTE_SEPARATOR = '\n---\n';
-const HEADER_RE = /^\[([^\]]+)\]\s*(.*)$/;
 
 function formatNoteTimestamp(date = new Date()) {
   return date.toLocaleString('es-CO', {
@@ -19,14 +19,14 @@ function parseIncidentNotes(raw) {
 
   if (!value.includes(INCIDENT_NOTE_SEPARATOR)) {
     const lines = value.split('\n');
-    const match = HEADER_RE.exec(lines[0] || '');
+    const match = parseBracketHeader(lines[0] || '');
     if (match) {
       const body = lines.slice(1).join('\n').trim();
       return [
         {
-          timestamp: match[1].trim(),
-          author: match[2].trim() || 'Operador',
-          text: body || match[2].trim(),
+          timestamp: match[0].trim(),
+          author: match[1].trim() || 'Operador',
+          text: body || match[1].trim(),
         },
       ];
     }
@@ -40,14 +40,14 @@ function parseIncidentNotes(raw) {
     .map((block) => {
       const lines = block.split('\n');
       const header = lines[0] || '';
-      const match = HEADER_RE.exec(header);
+      const match = parseBracketHeader(header);
       if (!match) {
         return { timestamp: null, author: 'Registro anterior', text: block };
       }
-      const author = match[2].trim();
+      const author = match[1].trim();
       const body = lines.slice(1).join('\n').trim();
       return {
-        timestamp: match[1].trim(),
+        timestamp: match[0].trim(),
         author,
         text: body || (author && !body ? author : ''),
       };
