@@ -27,6 +27,9 @@ export interface MedidasPermissions {
   medidasFisicas: MedidasFieldMode;
   canSaveGestion: boolean;
   canSaveMedidas: boolean;
+  osegHistorico?: boolean;
+  cerremHistorico?: boolean;
+  medidasHistorico?: boolean;
 }
 
 const HIDDEN: MedidasPermissions = {
@@ -123,6 +126,44 @@ export function resolveClosedMedidasPermissions(
   };
 }
 
+/** Muestra en solo lectura las etapas ya registradas que el estado actual no muestra. */
+export function withRegisteredStages(
+  perms: MedidasPermissions,
+  gestion: GestionSnapshot | null | undefined,
+  medidasCount: number,
+): MedidasPermissions {
+  if (!perms.showPanel) return perms;
+  const readonly: MedidasFieldMode = 'readonly';
+  const next: MedidasPermissions = { ...perms };
+
+  if (!perms.showOsegBlock && hasOsegGestionData(gestion)) {
+    next.showOsegBlock = true;
+    next.osegHistorico = true;
+    next.servidorJudicial = readonly;
+    next.oficioTramite = readonly;
+    next.tramiteDestino = readonly;
+  }
+
+  if (!perms.showCerremBlock && hasCerremGestionData(gestion)) {
+    next.showCerremBlock = true;
+    next.cerremHistorico = true;
+    next.fechaCerrem = readonly;
+    next.resolucionCerrem = readonly;
+    next.fechaResolucion = readonly;
+    next.nivelRiesgo = readonly;
+  }
+
+  if (!perms.showMedidasBlock && medidasCount > 0) {
+    next.showMedidasBlock = true;
+    next.medidasHistorico = true;
+    next.tipoEsquema = readonly;
+    next.observaciones = readonly;
+    next.medidasFisicas = readonly;
+  }
+
+  return next;
+}
+
 export function isClosedWorkflowStatus(status: string): boolean {
   const ui = catalogStatusToUiStatus(status);
   return ui === 'Cerrado' || ui === 'Cancelado';
@@ -166,12 +207,12 @@ export function getMedidasPermissions(
     case 'En gestión UNP': {
       const unp: MedidasPermissions = {
         showPanel: true,
-        showOsegBlock: true,
+        showOsegBlock: false,
         showCerremBlock: true,
         showMedidasBlock: false,
-        servidorJudicial: 'readonly',
-        oficioTramite: 'readonly',
-        tramiteDestino: 'readonly',
+        servidorJudicial: 'hidden',
+        oficioTramite: 'hidden',
+        tramiteDestino: 'hidden',
         fechaCerrem: 'editable',
         resolucionCerrem: 'editable',
         fechaResolucion: 'editable',
@@ -196,12 +237,12 @@ export function getMedidasPermissions(
     case 'Reiteraciones':
       return {
         showPanel: true,
-        showOsegBlock: true,
+        showOsegBlock: false,
         showCerremBlock: true,
         showMedidasBlock: false,
-        servidorJudicial: 'readonly',
-        oficioTramite: 'readonly',
-        tramiteDestino: 'readonly',
+        servidorJudicial: 'hidden',
+        oficioTramite: 'hidden',
+        tramiteDestino: 'hidden',
         fechaCerrem: 'editable',
         resolucionCerrem: 'editable',
         fechaResolucion: 'editable',

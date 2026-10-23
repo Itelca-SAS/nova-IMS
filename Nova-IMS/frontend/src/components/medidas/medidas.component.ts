@@ -32,6 +32,7 @@ import {
   medidasPanelLockedMessage,
   medidasTabHint,
   resolveClosedMedidasPermissions,
+  withRegisteredStages,
   type MedidasFieldMode,
   type MedidasPermissions,
 } from '../../utils/medidas-permissions';
@@ -364,6 +365,9 @@ interface ModuloMensaje {
                 />
               </svg>
               En gestión UNP
+              @if (permissions().cerremHistorico) {
+                <span class="ml-auto text-xs font-normal normal-case tracking-normal text-gray-400">Registrado — solo lectura</span>
+              }
             </h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               @if (fieldVisible('fechaCerrem')) {
@@ -508,6 +512,9 @@ interface ModuloMensaje {
                 />
               </svg>
               Medidas de seguridad
+              @if (permissions().medidasHistorico) {
+                <span class="ml-auto text-xs font-normal normal-case tracking-normal text-gray-400">Registrado — solo lectura</span>
+              }
             </h3>
 
             <div class="space-y-3">
@@ -760,7 +767,11 @@ export class MedidasComponent implements OnInit, OnChanges {
         this.medidasSeleccionadas().length,
       );
     }
-    return getMedidasPermissions(status, agency, this.effectiveGestion());
+    return withRegisteredStages(
+      getMedidasPermissions(status, agency, this.effectiveGestion()),
+      this.gestionSnapshot(),
+      this.medidasSeleccionadas().length,
+    );
   });
   closedReviewEmpty = computed(
     () =>
@@ -784,6 +795,7 @@ export class MedidasComponent implements OnInit, OnChanges {
   osegEditMode = signal(false);
   osegFieldsOpen = computed(() => {
     if (isClosedWorkflowStatus(this.workflowStatusSig())) return false;
+    if (this.permissions().osegHistorico) return false;
     if (this.osegEditMode()) return true;
     if (this.osegGuardada()) return false;
     const p = this.permissions();
@@ -805,7 +817,7 @@ export class MedidasComponent implements OnInit, OnChanges {
     if (ui === 'En gestión OSEG' && this.osegGuardada() && !this.osegEditMode()) {
       return 'Gestión OSEG guardada. Pulse «Editar» al final del módulo para modificar.';
     }
-    if (this.permissions().showMedidasBlock) {
+    if (this.permissions().showMedidasBlock && !this.permissions().medidasHistorico) {
       if (this.medidasEditMode()) {
         return 'Ajuste las medidas de seguridad y pulse «Guardar».';
       }
@@ -814,7 +826,12 @@ export class MedidasComponent implements OnInit, OnChanges {
       }
       return 'Asigne las medidas de seguridad y pulse «Guardar». También queda registrada la gestión UNP.';
     }
-    if (this.cerremGuardada() && !this.cerremEditMode() && this.permissions().showCerremBlock) {
+    if (
+      this.cerremGuardada() &&
+      !this.cerremEditMode() &&
+      this.permissions().showCerremBlock &&
+      !this.permissions().cerremHistorico
+    ) {
       return 'Gestión UNP guardada. Pulse «Editar» al final del módulo para modificar.';
     }
     if (isClosedWorkflowStatus(this.workflowStatus)) {
@@ -1039,9 +1056,9 @@ export class MedidasComponent implements OnInit, OnChanges {
         this.cerremEditMode() || (this.unpMedidasUnificadas() && this.isMedidasEditable()),
       medidasGuardadas: this.medidasGuardadas(),
       medidasEditMode: this.medidasEditMode(),
-      showOsegBlock: permissions.showOsegBlock,
-      showCerremBlock: permissions.showCerremBlock,
-      showMedidasBlock: permissions.showMedidasBlock,
+      showOsegBlock: permissions.showOsegBlock && !permissions.osegHistorico,
+      showCerremBlock: permissions.showCerremBlock && !permissions.cerremHistorico,
+      showMedidasBlock: permissions.showMedidasBlock && !permissions.medidasHistorico,
       showPonalObservaciones: this.showPonalObservaciones(),
     };
   }
@@ -1063,7 +1080,7 @@ export class MedidasComponent implements OnInit, OnChanges {
 
   showOsegAccion(): boolean {
     if (isClosedWorkflowStatus(this.workflowStatus)) return false;
-    if (!this.permissions().showOsegBlock) return false;
+    if (!this.permissions().showOsegBlock || this.permissions().osegHistorico) return false;
     if (this.osegGuardada()) return true;
     return this.permissions().canSaveGestion;
   }
@@ -1071,14 +1088,14 @@ export class MedidasComponent implements OnInit, OnChanges {
   showCerremAccion(): boolean {
     if (this.unpMedidasUnificadas()) return false;
     if (isClosedWorkflowStatus(this.workflowStatus)) return false;
-    if (!this.permissions().showCerremBlock) return false;
+    if (!this.permissions().showCerremBlock || this.permissions().cerremHistorico) return false;
     if (this.cerremGuardada()) return true;
     return this.permissions().canSaveGestion || this.flujoCerremAlcanzado();
   }
 
   showMedidasAccion(): boolean {
     if (isClosedWorkflowStatus(this.workflowStatus)) return false;
-    if (!this.permissions().showMedidasBlock) return false;
+    if (!this.permissions().showMedidasBlock || this.permissions().medidasHistorico) return false;
     if (this.medidasGuardadas()) return true;
     return this.permissions().canSaveMedidas;
   }
@@ -1101,6 +1118,7 @@ export class MedidasComponent implements OnInit, OnChanges {
 
   isCerremFieldEditable(key: keyof MedidasPermissions): boolean {
     if (isClosedWorkflowStatus(this.workflowStatus)) return false;
+    if (this.permissions().cerremHistorico) return false;
     if (!this.cerremFieldKeys.includes(key)) return this.fieldEditable(key);
     if (this.unpMedidasUnificadas()) return this.isMedidasEditable();
     if (this.cerremGuardada() && !this.cerremEditMode()) return false;
@@ -1111,6 +1129,7 @@ export class MedidasComponent implements OnInit, OnChanges {
 
   isMedidasEditable(): boolean {
     if (isClosedWorkflowStatus(this.workflowStatus)) return false;
+    if (this.permissions().medidasHistorico) return false;
     if (this.medidasGuardadas() && !this.medidasEditMode()) return false;
     if (this.medidasEditMode()) return this.permissions().showMedidasBlock;
     return this.permissions().canSaveMedidas;

@@ -13,6 +13,7 @@ import {
   getCsjStatusDisabledReason,
   statusOptionLabel,
   isEventoPonal,
+  withRegisteredStages,
   type MedidasPermissions,
 } from './medidas-permissions';
 
@@ -295,5 +296,74 @@ describe('shouldNavigateToMedidasTab', () => {
   it('no navega en Nuevo, Cerrado o Cancelado', () => {
     expect(shouldNavigateToMedidasTab('Nuevo')).toBe(false);
     expect(shouldNavigateToMedidasTab('Cerrado')).toBe(false);
+  });
+});
+
+describe('withRegisteredStages', () => {
+  const unpGuardada = {
+    codigo_oficio: 'OF-1',
+    tramite_destino: 'Unp',
+    ...extraordinarioGuardado,
+  };
+
+  it('En gestión OSEG muestra en solo lectura la gestión UNP y las medidas ya registradas', () => {
+    const p = withRegisteredStages(getMedidasPermissions('En gestión OSEG', 'CSJ', unpGuardada), unpGuardada, 2);
+    expect(p.showOsegBlock).toBe(true);
+    expect(p.osegHistorico).toBeUndefined();
+    expect(p.oficioTramite).toBe('editable');
+    expect(p.showCerremBlock).toBe(true);
+    expect(p.cerremHistorico).toBe(true);
+    expect(p.resolucionCerrem).toBe('readonly');
+    expect(p.nivelRiesgo).toBe('readonly');
+    expect(p.showMedidasBlock).toBe(true);
+    expect(p.medidasHistorico).toBe(true);
+    expect(p.medidasFisicas).toBe('readonly');
+    expect(p.canSaveMedidas).toBe(false);
+  });
+
+  it('En gestión Ponal muestra OSEG, UNP y medidas registradas en solo lectura', () => {
+    const p = withRegisteredStages(getMedidasPermissions('En gestión Ponal', 'CSJ', unpGuardada), unpGuardada, 1);
+    expect(p.osegHistorico).toBe(true);
+    expect(p.cerremHistorico).toBe(true);
+    expect(p.medidasHistorico).toBe(true);
+    expect(p.oficioTramite).toBe('readonly');
+  });
+
+  it('no agrega bloques sin datos registrados', () => {
+    const p = withRegisteredStages(getMedidasPermissions('En gestión OSEG', 'CSJ', null), null, 0);
+    expect(p.showCerremBlock).toBe(false);
+    expect(p.showMedidasBlock).toBe(false);
+  });
+
+  it('no cambia los bloques propios del estado', () => {
+    const base = getMedidasPermissions('En gestión UNP', 'CSJ', unpGuardada);
+    const p = withRegisteredStages(base, unpGuardada, 1);
+    expect(p.cerremHistorico).toBeUndefined();
+    expect(p.medidasHistorico).toBeUndefined();
+    expect(p.medidasFisicas).toBe('editable');
+  });
+
+  it('Nuevo → En gestión UNP sin OSEG registrada: solo muestra UNP', () => {
+    const p = withRegisteredStages(getMedidasPermissions('En gestión UNP', 'CSJ', null), null, 0);
+    expect(p.showOsegBlock).toBe(false);
+    expect(p.showCerremBlock).toBe(true);
+    expect(p.resolucionCerrem).toBe('editable');
+  });
+
+  it('En gestión UNP con OSEG registrada: muestra OSEG en solo lectura', () => {
+    const p = withRegisteredStages(getMedidasPermissions('En gestión UNP', 'CSJ', unpGuardada), unpGuardada, 0);
+    expect(p.showOsegBlock).toBe(true);
+    expect(p.osegHistorico).toBe(true);
+    expect(p.oficioTramite).toBe('readonly');
+  });
+
+  it('Reiteraciones sin OSEG registrada: no muestra OSEG', () => {
+    const p = withRegisteredStages(getMedidasPermissions('Reiteraciones', 'CSJ', null), null, 0);
+    expect(p.showOsegBlock).toBe(false);
+  });
+
+  it('no habilita el panel en Nuevo', () => {
+    const p = withRegisteredStages(getMedidasPermissions('Nuevo', 'CSJ', unpGuardada), unpGuardada, 1);
+    expectHidden(p);
   });
 });
