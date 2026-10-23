@@ -1,9 +1,6 @@
 const { pool } = require('../../config/db');
 const { normalizeAgencyCode } = require('./maps');
 
-const PERM_SELECT =
-  'habilitado, puede_ver, puede_crear, puede_editar, puede_notificar, puede_exportar, req_habilitado, req_puede_ver, req_puede_crear, req_puede_editar, req_puede_notificar, req_puede_exportar';
-
 const EMPTY_PERMISSION_ROW = {
   habilitado: 0,
   puede_ver: 0,

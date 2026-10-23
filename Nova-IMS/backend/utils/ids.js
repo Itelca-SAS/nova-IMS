@@ -1,3 +1,4 @@
+const { randomInt } = require('node:crypto');
 const { pool } = require('../config/db');
 
 async function nextId(table, column, prefix, width = 3) {
@@ -16,7 +17,7 @@ async function nextId(table, column, prefix, width = 3) {
 }
 
 function logId(prefix = 'LOG') {
-  return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  return `${prefix}-${Date.now()}-${randomInt(1e12)}`;
 }
 
 const TRAILING_DIGITS_RE = /(\d+)/;

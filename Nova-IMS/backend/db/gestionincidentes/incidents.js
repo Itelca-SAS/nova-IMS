@@ -26,12 +26,13 @@ const {
   requiresMedidasForGestion,
 } = require('./riesgoNivel');
 const HttpError = require('../../utils/HttpError');
+const { logId } = require('../../utils/ids');
 
 const STATUS_REITERACIONES = 'Reiteraciones';
 const STATUS_MEDIDAS_ASIGNADAS = 'En gestión Ponal';
-const STATUS_CERRADO = 'Cerrado';
 const STATUS_EN_EVALUACION_CERREM = 'En gestión UNP';
 const STATUS_ENVIADO_CERREM = 'En gestión UNP';
+const STATUS_CERRADO = 'Cerrado';
 
 const CLOSING_STATUSES = new Set(['Cerrado', 'Resuelto', 'Cancelado']);
 
@@ -134,11 +135,14 @@ function formatCommentTimestamp(value) {
   });
 }
 
+// [fecha] o [fecha] Autor al inicio de bloque (sin cuantificadores solapados: evita ReDoS)
+const COMMENT_HEADER_LINE_RE = /^\[[^\]]+\](?:\s+[^\s[][^\n[]*|\s*)(?:\n|$)/;
+const COMMENT_HEADER_PREFIX_RE = /^\[[^\]]+\](?:\s+[^\s[][^\n[]*)?/;
+
 function plainCommentText(raw) {
   let text = String(raw ?? '').trim();
-  // [fecha] o [fecha] Autor al inicio de bloque
-  while (/^\[[^\]]+\](?:\s+[^\n\[]+)?\s*(\n|$)/.test(text)) {
-    text = text.replace(/^\[[^\]]+\](?:\s+[^\n\[]+)?\s*\n?/, '').trim();
+  while (COMMENT_HEADER_LINE_RE.test(text)) {
+    text = text.replace(COMMENT_HEADER_PREFIX_RE, '').trim();
   }
   text = text.replace(/^---\s*\n?/, '').trim();
   return text;
@@ -1277,7 +1281,7 @@ async function assertMedidasIfRequired(newStatus, visibleId, agencyCode) {
   const gestion = await getGestionByIncidente(visibleId);
   const isCsj = String(agencyCode || '').toUpperCase() === 'CSJ';
 
-  if (newStatus === 'Cerrado' && isCsj && requiresMedidasForGestion(gestion)) {
+  if (newStatus === STATUS_CERRADO && isCsj && requiresMedidasForGestion(gestion)) {
     const tieneMedidas = await hasAssignedMedidas(visibleId);
     if (!tieneMedidas) {
       throw new HttpError(
@@ -1288,7 +1292,7 @@ async function assertMedidasIfRequired(newStatus, visibleId, agencyCode) {
     return;
   }
 
-  if (!newStatus || newStatus === 'Cerrado' || !requiresMedidas(newStatus)) return;
+  if (!newStatus || newStatus === STATUS_CERRADO || !requiresMedidas(newStatus)) return;
   const tieneMedidas = await hasAssignedMedidas(visibleId);
   if (!tieneMedidas) {
     throw new HttpError(
@@ -1439,7 +1443,7 @@ async function writeAudit(conn, { incidentId, user, action, changes, details, cr
   const internalId = await getInternalId(incidentId, agencyCode);
   if (!internalId) return;
   const userCtx = await resolveUserContext(user?.sub, agencyCode);
-  const id = `LOG-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  const id = logId();
   const resolvedActor = actorDisplayName ?? creatorDisplayName ?? user?.name ?? null;
   const isCreation = String(action || '')
     .toLowerCase()
@@ -1516,4 +1520,5 @@ module.exports = {
   mapStatusFromGi,
   locationChannelToGi,
   locationChannelFromGi,
+  plainCommentText,
 };

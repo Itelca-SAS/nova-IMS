@@ -1,5 +1,4 @@
 const asyncHandler = require('../utils/asyncHandler');
-const logger = require('../utils/logger');
 const authService = require('../services/auth.service');
 const ldapConfig = require('../config/ldap');
 const ldapService = require('../services/ldap.service');
