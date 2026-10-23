@@ -132,7 +132,7 @@ export class IncidentsComponent implements OnInit, AfterViewInit, OnDestroy {
     });
 
     effect(() => {
-      this.filteredIncidents().length;
+      this.filteredIncidents();
       this.dashboardPageSize();
       const pages = this.dashboardTotalPages();
       if (this.dashboardCurrentPage() > pages) {

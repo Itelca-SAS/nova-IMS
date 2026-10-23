@@ -1342,11 +1342,11 @@ export class IncidentListComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private reverseGeocode(lat: number, lng: number) {
-    this.runReverseGeocode(lat, lng, false);
+    void this.runReverseGeocode(lat, lng, false);
   }
 
   private reverseGeocodeFromGps(lat: number, lng: number, epoch = this.formSyncEpoch) {
-    this.runReverseGeocode(lat, lng, true, epoch);
+    void this.runReverseGeocode(lat, lng, true, epoch);
   }
 
   private geocodeLatLng(

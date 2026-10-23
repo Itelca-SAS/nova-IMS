@@ -114,10 +114,6 @@ function buildTokenResponse(user) {
   const authSource = normalizeAuthSource(user.auth_source);
   const mustChangePassword = authSource === 'ldap' ? false : !!user.must_change_password;
 
-  if (!isDirectoryOnlyId(user.id)) {
-    giUsers.updateLastLogin().catch(() => {});
-  }
-
   const payload = {
     sub: user.id,
     username: user.username,

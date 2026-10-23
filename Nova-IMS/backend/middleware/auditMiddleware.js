@@ -123,7 +123,7 @@ function auditMiddleware(req, res, next) {
       const rule = resolveRule(req.method, cleanPath);
       if (!rule) return; // Solo auditamos acciones de la lista blanca.
 
-      recordAudit({
+      void recordAudit({
         req,
         user: req.user,
         categoria: rule.categoria,

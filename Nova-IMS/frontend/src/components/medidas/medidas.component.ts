@@ -1481,7 +1481,7 @@ export class MedidasComponent implements OnInit, OnChanges {
   guardarMedidas() {
     if (isClosedWorkflowStatus(this.workflowStatus)) return;
     if (this.medidasGuardadas() && !this.medidasEditMode()) return;
-    this.guardarMedidasAsync();
+    void this.guardarMedidasAsync();
   }
 
   guardarObservacionPonal(): Promise<boolean> {

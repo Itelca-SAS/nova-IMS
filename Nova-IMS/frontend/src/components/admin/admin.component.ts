@@ -511,12 +511,12 @@ export class AdminComponent implements OnInit, AfterViewInit, OnDestroy {
       const tab = this.activeTab();
       const detailOpen =
         tab === 'incident_history' && !!this.selectedIncidentForHistory();
-      this.searchedOperators().length;
-      this.incidentTypes().length;
-      this.filteredResponseProtocols().length;
-      this.displayedNotificationEmails().length;
-      this.filteredIncidentsForHistory().length;
-      this.people().length;
+      this.searchedOperators();
+      this.incidentTypes();
+      this.filteredResponseProtocols();
+      this.displayedNotificationEmails();
+      this.filteredIncidentsForHistory();
+      this.people();
       if (!ADAPTIVE_PAGE_TABS.has(tab) || detailOpen) return;
       queueMicrotask(() => this.connectAdminListPanelObserver());
     });
@@ -755,6 +755,12 @@ export class AdminComponent implements OnInit, AfterViewInit, OnDestroy {
           });
         },
       });
+  }
+
+  lastLoginLabel(value: string): string {
+    const date = new Date(String(value).replace(' ', 'T'));
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' });
   }
 
   suggestUsername(primerNombre: string, primerApellido: string): string {

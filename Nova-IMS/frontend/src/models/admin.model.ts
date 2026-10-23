@@ -14,6 +14,7 @@ export interface Operator {
   agencyName?: string;
   role: string;
   status: 'Activo' | 'Inactivo';
+  lastLogin?: string | null;
 }
 
 export interface OperatorFormPayload {

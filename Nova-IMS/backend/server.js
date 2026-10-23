@@ -83,7 +83,10 @@ async function bootstrap() {
   });
 }
 
-bootstrap();
+bootstrap().catch((err) => {
+  logger.error('[Servidor] No se pudo iniciar:', err?.message ?? err);
+  process.exit(1);
+});
 
 function shutdown(signal) {
   logger.info(signal);

@@ -25,6 +25,7 @@ function mapOperator(r) {
     agencyName: r.agency_name || '',
     role: r.role_name,
     status: r.status,
+    lastLogin: r.last_login ?? null,
   };
 }
 

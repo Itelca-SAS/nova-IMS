@@ -116,9 +116,6 @@ async function verifyPassword(stored, plain) {
   return value === plain;
 }
 
-async function updateLastLogin() {
-}
-
 async function updatePasswordHash(userId, agencyCode, plain) {
   await pool.query(
     `UPDATE usuarios SET Contraseña = ?, Token_Contraseña = ? WHERE ID_Usuario = ? AND UPPER(ID_Agencia) = ?`,
@@ -136,6 +133,17 @@ async function hashStoredPassword(userId, agencyCode, plain, stored) {
   );
 }
 
+async function loadLastLogins(agency) {
+  const [rows] = await pool.query(
+    `SELECT ID_Usuario AS id, MAX(Fecha) AS last_login
+     FROM registro_logueos
+     WHERE UPPER(ID_Agencia) = ? AND Login_exitoso = 'Exitoso'
+     GROUP BY ID_Usuario`,
+    [agency],
+  );
+  return new Map(rows.map((r) => [r.id, r.last_login]));
+}
+
 async function listOperators(agencyCode) {
   const agencyMap = await loadAgencyMap();
   const agency = normalizeAgencyCode(agencyCode);
@@ -145,7 +153,11 @@ async function listOperators(agencyCode) {
      ORDER BY u.FechaRegistro DESC`,
     [agency],
   );
-  return rows.map((r) => attachAgencyId(r, agencyMap));
+  const lastLogins = await loadLastLogins(agency);
+  return rows.map((r) => ({
+    ...attachAgencyId(r, agencyMap),
+    last_login: lastLogins.get(r.id) ?? null,
+  }));
 }
 
 async function findRoleIdByName(name, agencyCode) {
@@ -400,7 +412,6 @@ module.exports = {
   findUserById,
   userExists,
   verifyPassword,
-  updateLastLogin,
   updatePasswordHash,
   hashStoredPassword,
   listOperators,

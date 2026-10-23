@@ -399,7 +399,9 @@
           }
         </div>
         <form [formGroup]="resetForm" (ngSubmit)="submitReset()" class="space-y-4 sm:space-y-5">
+          <label for="reset-new-password" class="sr-only">Nueva contraseña</label>
           <input
+            id="reset-new-password"
             formControlName="newPassword"
             type="password"
             maxlength="128"
@@ -413,7 +415,9 @@
               <li [class]="hint.ok ? 'text-green-400' : 'text-gray-500'">{{ hint.label }}</li>
             }
           </ul>
+          <label for="reset-confirm-password" class="sr-only">Confirmar contraseña</label>
           <input
+            id="reset-confirm-password"
             formControlName="confirmPassword"
             type="password"
             maxlength="128"
