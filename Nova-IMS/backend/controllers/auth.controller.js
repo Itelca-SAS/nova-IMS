@@ -20,6 +20,18 @@ function maskEmail(email) {
   return `${visible}${'*'.repeat(Math.max(1, local.length - 2))}@${domain}`;
 }
 
+const INVALID_CREDENTIALS_MSG = 'Credenciales incorrectas. Por favor, intente de nuevo.';
+
+function forgotPasswordRejection(user) {
+  if (!user) return 'Usuario inexistente';
+  if (String(user.status || '').toLowerCase() !== 'activo') return 'Cuenta inactiva';
+  if (!isLocalPasswordUser(user) || String(user.auth_source || '').toLowerCase() === 'ldap') {
+    return 'Cuenta del directorio corporativo';
+  }
+  if (!user.email) return 'Cuenta sin correo registrado';
+  return null;
+}
+
 const OTP_FAIL_REASONS = {
   expired: 'Código OTP expirado',
   too_many_attempts: 'Demasiados intentos fallidos de OTP',
@@ -122,10 +134,7 @@ exports.login = asyncHandler(async (req, res) => {
         `Intento en agencia incorrecta (${String(agencia).toUpperCase()})`,
         rememberUser,
       );
-      throw new HttpError(
-        401,
-        `El usuario no pertenece a la agencia ${String(agencia).toUpperCase()}. Seleccione ${elsewhere.agency_code}.`,
-      );
+      throw new HttpError(401, INVALID_CREDENTIALS_MSG);
     }
     await recordAudit({
       req,
@@ -139,7 +148,7 @@ exports.login = asyncHandler(async (req, res) => {
       resultado: 'fallido',
       detalle: `Usuario inexistente: "${usuario}"`,
     });
-    throw new HttpError(401, 'Credenciales incorrectas.');
+    throw new HttpError(401, INVALID_CREDENTIALS_MSG);
   }
 
   res.json(await startOtpFlow(user, rememberUser, false));
@@ -153,10 +162,7 @@ exports.verifyOtp = asyncHandler(async (req, res) => {
 
   const user = await giUsers.findUserById(userId, agencia);
   if (!user) {
-    throw new HttpError(
-      401,
-      'Usuario no encontrado en la agencia seleccionada. Inicie sesión de nuevo.',
-    );
+    throw new HttpError(401, 'Código incorrecto o expirado. Inicie sesión de nuevo.');
   }
 
   const registroId =
@@ -298,46 +304,45 @@ exports.forgotPassword = asyncHandler(async (req, res) => {
   }
 
   const user = await giUsers.findUserByLogin(usuario, agencia);
-  if (!user) {
-    throw new HttpError(404, 'No encontramos una cuenta con ese usuario o correo en la agencia.');
+  const rejection = forgotPasswordRejection(user);
+
+  if (rejection) {
+    await recordAudit({
+      req,
+      actorId: user?.id ?? null,
+      actorName: user?.name || String(usuario),
+      agencyCode: user?.agency_code || String(agencia).toUpperCase(),
+      categoria: 'seguridad',
+      modulo: 'Autenticación',
+      tablaAfectada: 'usuarios',
+      accion: 'Solicitud de restablecimiento de contraseña',
+      resultado: 'fallido',
+      detalle: rejection,
+    });
+  } else {
+    const code = otpService.generate(user.id, { purpose: 'reset' });
+    dispatchOtpEmail({ to: user.email, name: user.name, code, purpose: 'reset' });
+    await recordAudit({
+      req,
+      actorId: user.id,
+      actorName: user.name,
+      agencyCode: user.agency_code,
+      categoria: 'seguridad',
+      modulo: 'Autenticación',
+      tablaAfectada: 'usuarios',
+      accion: 'Solicitud de restablecimiento de contraseña',
+      resultado: 'pendiente',
+      detalle: `Código enviado a ${maskEmail(user.email)}`,
+    });
   }
-
-  if (String(user.status || '').toLowerCase() !== 'activo') {
-    throw new HttpError(403, 'La cuenta no está activa. Contacte a su administrador.');
-  }
-
-  if (!isLocalPasswordUser(user) || String(user.auth_source || '').toLowerCase() === 'ldap') {
-    throw new HttpError(
-      400,
-      'Los usuarios del directorio corporativo restablecen la contraseña con su área de TI.',
-    );
-  }
-
-  if (!user.email) {
-    throw new HttpError(400, 'La cuenta no tiene correo registrado. Contacte a su administrador.');
-  }
-
-  const code = otpService.generate(user.id, { purpose: 'reset' });
-  dispatchOtpEmail({ to: user.email, name: user.name, code, purpose: 'reset' });
-
-  await recordAudit({
-    req,
-    actorId: user.id,
-    actorName: user.name,
-    agencyCode: user.agency_code,
-    categoria: 'seguridad',
-    modulo: 'Autenticación',
-    tablaAfectada: 'usuarios',
-    accion: 'Solicitud de restablecimiento de contraseña',
-    resultado: 'pendiente',
-    detalle: `Código enviado a ${maskEmail(user.email)}`,
-  });
 
   res.json({
     requiresOtp: true,
-    userId: user.id,
-    otpTarget: maskEmail(user.email),
-    message: 'Enviamos un código al correo registrado de la cuenta.',
+    userId: String(usuario).trim(),
+    otpTarget: 'el correo registrado de la cuenta',
+    message:
+      'Si la cuenta existe y está habilitada, enviamos un código al correo registrado. ' +
+      'Las cuentas del directorio corporativo restablecen la contraseña con su área de TI.',
   });
 });
 

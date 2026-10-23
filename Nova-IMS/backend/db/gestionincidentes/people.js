@@ -31,39 +31,9 @@ async function repairLegacyAdminPersonas() {
   );
 }
 
-async function ensurePersonStatusColumn() {
-  const [cols] = await pool.query("SHOW COLUMNS FROM personas LIKE 'estado'");
-  if (!cols.length) {
-    await pool.query(
-      `ALTER TABLE personas ADD COLUMN estado varchar(20) NOT NULL DEFAULT 'Activo'`,
-    );
-  }
-  await pool.query(`UPDATE personas SET estado = 'Activo' WHERE estado IS NULL OR estado = ''`);
-}
-
-let personSharePointReady = false;
-
-async function ensurePersonSharePointStorage() {
-  if (personSharePointReady) return;
-  const [cols] = await pool.query("SHOW COLUMNS FROM personas LIKE 'Comentarios'");
-  const col = cols[0];
-  const match = col && /varchar\((\d+)\)/i.exec(String(col.Type || ''));
-  const len = match ? Number(match[1]) : 0;
-  if (len > 0 && len < 500) {
-    await pool.query('ALTER TABLE personas MODIFY COLUMN Comentarios varchar(500) NULL');
-  }
-  personSharePointReady = true;
-}
-
 async function ensureAdminPersonasCatalog() {
   if (adminCatalogReady) return;
-  const [cols] = await pool.query("SHOW COLUMNS FROM personas LIKE 'ID_incidente'");
-  const col = cols[0];
-  if (col && String(col.Null).toUpperCase() === 'NO') {
-    await pool.query('ALTER TABLE personas MODIFY COLUMN ID_incidente int NULL');
-  }
-  await ensurePersonStatusColumn();
-  await ensurePersonSharePointStorage();
+  await pool.query(`UPDATE personas SET estado = 'Activo' WHERE estado IS NULL OR estado = ''`);
   await repairLegacyAdminPersonas();
   await backfillCatalogFromIncidentPeople();
   await pool.query(
@@ -250,7 +220,6 @@ function normalizePersonStatus(value) {
 async function insertPersonComment(executor, personId, text, userId, agencyCode) {
   const commentText = String(text || '').trim();
   if (!commentText || !userId || !personId) return;
-  await ensurePersonSharePointStorage();
   const col = (await resolvePersonCommentColumn()) || 'Comentarios';
   const maxLen = col === 'RutaDeSharePoint' ? 500 : 200;
   await executor.query(
@@ -657,5 +626,4 @@ module.exports = {
   deletePersonComments,
   personCommentHistoryExpr,
   ensureCatalogPerson,
-  ensurePersonSharePointStorage,
 };

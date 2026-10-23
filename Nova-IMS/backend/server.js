@@ -9,6 +9,7 @@ const { pool, testConnection } = require('./config/db');
 const routes = require('./routes');
 const errorHandler = require('./middleware/errorHandler');
 const { authRequired } = require('./middleware/auth');
+const { apiSecurityHeaders, pageSecurityHeaders } = require('./middleware/securityHeaders');
 const socket = require('./realtime/socket');
 const logger = require('./utils/logger');
 const { validateEnv } = require('./config/validateEnv');
@@ -21,6 +22,8 @@ if (envErrors.length) {
 
 const app = express();
 const server = http.createServer(app);
+
+app.disable('x-powered-by');
 
 app.use(
   cors({
@@ -41,9 +44,9 @@ app.get('/health', async (req, res) => {
 });
 
 const locationRoutes = require('./routes/location.routes');
-app.use('/location', locationRoutes);
+app.use('/location', pageSecurityHeaders, locationRoutes);
 
-app.use('/api', routes);
+app.use('/api', apiSecurityHeaders, routes);
 
 app.use('/api/notifications', authRequired, notificationsRoutes);
 

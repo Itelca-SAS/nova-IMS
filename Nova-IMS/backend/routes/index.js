@@ -29,6 +29,8 @@ const giIncidents = require('../db/gestionincidentes/incidents');
 const { sessionDisplayName } = require('../utils/jwtUser');
 const HttpError = require('../utils/HttpError');
 const rateLimit = require('../middleware/rateLimit');
+const { validateBody } = require('../middleware/validate');
+const schemas = require('./schemas');
 
 const FIFTEEN_MIN = 15 * 60 * 1000;
 const loginLimiter = rateLimit({ name: 'login', windowMs: FIFTEEN_MIN, max: 10 });
@@ -61,12 +63,23 @@ async function writeIncidentAudit(incidentId, user, { action, changes, details }
 }
 
 router.get('/config/public', configCtrl.publicConfig);
-router.post('/auth/login', loginLimiter, authCtrl.login);
-router.post('/auth/verify-otp', otpLimiter, authCtrl.verifyOtp);
-router.post('/auth/forgot-password', forgotLimiter, authCtrl.forgotPassword);
-router.post('/auth/reset-password', resetLimiter, authCtrl.resetPassword);
+router.post('/auth/login', validateBody(schemas.login), loginLimiter, authCtrl.login);
+router.post('/auth/verify-otp', validateBody(schemas.verifyOtp), otpLimiter, authCtrl.verifyOtp);
+router.post(
+  '/auth/forgot-password',
+  validateBody(schemas.forgotPassword),
+  forgotLimiter,
+  authCtrl.forgotPassword,
+);
+router.post(
+  '/auth/reset-password',
+  validateBody(schemas.resetPassword),
+  resetLimiter,
+  authCtrl.resetPassword,
+);
 router.post(
   '/auth/change-password-credentials',
+  validateBody(schemas.changePasswordWithCredentials),
   changeCredLimiter,
   authCtrl.changePasswordWithCredentials,
 );
@@ -120,7 +133,7 @@ router.post('/audit/client-event', auditClientCtrl.clientEvent);
 
 router.get('/auth/me', authCtrl.me);
 router.get('/auth/permissions', authCtrl.permissions);
-router.post('/auth/change-password', authCtrl.changePassword);
+router.post('/auth/change-password', validateBody(schemas.changePassword), authCtrl.changePassword);
 router.post('/auth/logout', authCtrl.logout);
 
 router.get('/incidents', incCtrl.list);
@@ -128,12 +141,12 @@ router.get('/incidents/dashboard-metrics', incCtrl.dashboardMetrics);
 router.get('/incidents/vehicle-lookup/:plate', incCtrl.lookupVehicleByPlate);
 router.get('/incidents/:id', incCtrl.getOne);
 router.post('/incidents/:id/send-email', perm.notify('Incidentes'), incCtrl.sendEmail);
-router.post('/incidents', perm.create('Incidentes'), incCtrl.create);
-router.put('/incidents/:id', perm.edit('Incidentes'), incCtrl.update);
+router.post('/incidents', perm.create('Incidentes'), validateBody(schemas.incident), incCtrl.create);
+router.put('/incidents/:id', perm.edit('Incidentes'), validateBody(schemas.incident), incCtrl.update);
 
 router.get('/people', peopleCtrl.list);
-router.post('/people', perm.create('Administración'), peopleCtrl.create);
-router.put('/people/:id', perm.edit('Administración'), peopleCtrl.update);
+router.post('/people', perm.create('Administración'), validateBody(schemas.person), peopleCtrl.create);
+router.put('/people/:id', perm.edit('Administración'), validateBody(schemas.person), peopleCtrl.update);
 router.patch('/people/:id/status', perm.edit('Administración'), peopleCtrl.setStatus);
 router.get('/person-roles', peopleCtrl.personRoles);
 router.get('/judge-cargos', peopleCtrl.judgeCargos);
@@ -144,8 +157,8 @@ router.get('/telephony/lookup/:phone', peopleCtrl.lookupByPhone);
 router.get('/people/lookup/document/:documentId', peopleCtrl.lookupByDocument);
 
 router.get('/operators', opCtrl.list);
-router.post('/operators', perm.create('Administración'), opCtrl.create);
-router.put('/operators/:id', perm.edit('Administración'), opCtrl.update);
+router.post('/operators', perm.create('Administración'), validateBody(schemas.operator), opCtrl.create);
+router.put('/operators/:id', perm.edit('Administración'), validateBody(schemas.operator), opCtrl.update);
 
 router.get('/incident-types', typeCtrl.list);
 router.post('/incident-types', perm.create('Administración'), typeCtrl.create);
@@ -156,11 +169,16 @@ router.post('/response-protocols', perm.create('Administración'), protoCtrl.cre
 router.put('/response-protocols/:id', perm.edit('Administración'), protoCtrl.update);
 
 router.get('/notification-emails', notifCtrl.list);
-router.post('/notification-emails', perm.create('Administración'), notifCtrl.add);
+router.post(
+  '/notification-emails',
+  perm.create('Administración'),
+  validateBody(schemas.notificationEmail),
+  notifCtrl.add,
+);
 router.patch('/notification-emails/:email/status', perm.edit('Administración'), notifCtrl.setStatus);
 
 router.get('/roles', perm.view('Administración'), roleCtrl.list);
-router.post('/roles', perm.create('Administración'), roleCtrl.create);
+router.post('/roles', perm.create('Administración'), validateBody(schemas.role), roleCtrl.create);
 router.put('/roles/:id', perm.edit('Administración'), roleCtrl.update);
 
 router.get('/admin-logs', perm.view('Administración'), logCtrl.adminLogs);
@@ -170,7 +188,7 @@ router.get('/users-audit-summary/:userId/actions', perm.view('Administración'),
 router.get('/reports/summary', perm.view('Reportes'), reportsCtrl.summary);
 
 router.get('/location-requests', locCtrl.list);
-router.post('/location-requests', locCtrl.create);
+router.post('/location-requests', validateBody(schemas.locationRequest), locCtrl.create);
 router.post('/location-requests/:id/received', locCtrl.receive);
 
 router.get('/catalog/riesgos', async (req, res, next) => {

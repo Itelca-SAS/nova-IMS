@@ -16,7 +16,6 @@ const {
   insertPersonComment,
   personCommentHistoryExpr,
   ensureCatalogPerson,
-  ensurePersonSharePointStorage,
 } = require('./people');
 const { insertVehicleComment, deleteVehicleCommentsForIncident } = require('./vehicles');
 const { linkLocationToIncident, syncLinkedLocationCoords } = require('./location');
@@ -923,8 +922,6 @@ async function insertInvolvedPerson(conn, internalId, person, userCtx, agencyCod
     conn,
   );
 
-  await ensurePersonSharePointStorage();
-
   const [personResult] = await conn.query(
     `INSERT INTO personas
       (Primer_Nombre, Segundo_Nombre, Primer_Apellido, Segundo_Apellido, ID_RolP, ID_Cargo,
@@ -1482,8 +1479,6 @@ async function loadAuditLogs(visibleId) {
 }
 
 async function emailAllowed(recipients, agencyCode = null) {
-  const { ensureEmailStatusColumn } = require('./correosSchema');
-  await ensureEmailStatusColumn();
   const ph = recipients.map(() => '?').join(',');
   const params = recipients.map((e) => e.toLowerCase());
   let agencyClause = '';

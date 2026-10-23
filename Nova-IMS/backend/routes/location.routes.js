@@ -43,6 +43,9 @@ router.post('/submit', async (req, res) => {
   if (!request_id || typeof lat !== 'number' || typeof lng !== 'number') {
     return res.status(400).json({ error: 'request_id, lat y lng son requeridos' });
   }
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+    return res.status(400).json({ error: 'Coordenadas fuera de rango' });
+  }
   if (!REQUEST_ID_RE.test(String(request_id))) {
     return res.status(400).json({ error: 'request_id inválido' });
   }

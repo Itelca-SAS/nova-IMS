@@ -4,7 +4,7 @@ const { resolveUserContext } = require('./users');
 const { resolveActorForDb } = require('../../utils/jwtUser');
 const { normalizeAgencyCode } = require('./maps');
 const { requireAgencyInput } = require('./agencyContext');
-const { ensureEmailStatusColumn, normalizeEmailStatus } = require('./correosSchema');
+const { normalizeEmailStatus } = require('./correosSchema');
 
 async function listNotifications(agencyCode) {
   const agency = requireAgencyInput(agencyCode);
@@ -67,7 +67,6 @@ async function markAllRead(userId, agencyCode) {
 }
 
 async function listNotificationEmails(agencyCode) {
-  await ensureEmailStatusColumn();
   const code = normalizeAgencyCode(agencyCode);
   const [rows] = await pool.query(
     `SELECT Correo AS email, COALESCE(NULLIF(estado, ''), 'Activo') AS status
@@ -83,7 +82,6 @@ async function listNotificationEmails(agencyCode) {
 }
 
 async function addNotificationEmail(email, agencyCode) {
-  await ensureEmailStatusColumn();
   const normalized = email.trim().toLowerCase();
   const code = normalizeAgencyCode(agencyCode);
   const [existing] = await pool.query(
@@ -110,7 +108,6 @@ async function addNotificationEmail(email, agencyCode) {
 }
 
 async function setNotificationEmailStatus(email, agencyCode, status) {
-  await ensureEmailStatusColumn();
   const estado = normalizeEmailStatus(status);
   const code = normalizeAgencyCode(agencyCode);
   const [r] = await pool.query(
