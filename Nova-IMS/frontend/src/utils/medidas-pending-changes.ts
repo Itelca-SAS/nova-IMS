@@ -122,9 +122,9 @@ export type MedidasPendingSection = 'oseg' | 'cerrem' | 'medidas' | 'ponal';
 
 export const MEDIDAS_PENDING_SECTION_LABELS: Record<MedidasPendingSection, string> = {
   oseg: 'Gestión OSEG (oficio / trámite)',
-  cerrem: 'En gestión UNP',
-  medidas: 'Medidas de protección',
-  ponal: 'Observaciones',
+  cerrem: 'Gestión UNP',
+  medidas: 'Medidas de seguridad',
+  ponal: 'Gestión Ponal (observaciones)',
 };
 
 type MedidaEntry = MedidasDraftSnapshot['medidas'][number];

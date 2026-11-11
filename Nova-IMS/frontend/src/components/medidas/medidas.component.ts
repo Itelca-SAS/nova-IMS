@@ -231,10 +231,10 @@ interface ModuloMensaje {
                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                   />
                 </svg>
-                Gestión OSEG
+                1 · Gestión OSEG
               </span>
               @if (osegGuardada() && !osegEditMode()) {
-                <span class="text-xs font-normal normal-case tracking-normal text-orange-300/90">Guardado — no editable</span>
+                <span class="text-xs font-normal normal-case tracking-normal text-gray-400">Registrado — solo lectura</span>
               }
             </h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -352,11 +352,11 @@ interface ModuloMensaje {
 
         @if (permissions().showCerremBlock) {
           <div
-            class="bg-gray-800 rounded-lg p-4 border border-gray-700"
+            class="bg-gray-800 rounded-lg p-4 border border-orange-500/30"
             [class.opacity-95]="cerremGuardada() && !cerremEditMode()"
           >
-            <h3 class="text-white font-semibold flex items-center gap-2 text-sm uppercase tracking-wider mb-4">
-              <svg class="h-5 w-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <h3 class="text-orange-300 font-semibold flex items-center gap-2 text-sm uppercase tracking-wider mb-4">
+              <svg class="h-5 w-5 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -364,7 +364,7 @@ interface ModuloMensaje {
                   d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
                 />
               </svg>
-              En gestión UNP
+              2 · Gestión UNP
               @if (permissions().cerremHistorico) {
                 <span class="ml-auto text-xs font-normal normal-case tracking-normal text-gray-400">Registrado — solo lectura</span>
               }
@@ -499,11 +499,11 @@ interface ModuloMensaje {
         @if (permissions().showMedidasBlock) {
           <div
             id="medidas-asignadas-block"
-            class="bg-gray-800 rounded-lg p-4 border border-gray-700"
+            class="bg-gray-800 rounded-lg p-4 border border-orange-500/30"
             [class.opacity-95]="medidasGuardadas() && !medidasEditMode()"
           >
-            <h3 class="text-white font-semibold flex items-center gap-2 text-sm uppercase tracking-wider mb-4">
-              <svg class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <h3 class="text-orange-300 font-semibold flex items-center gap-2 text-sm uppercase tracking-wider mb-4">
+              <svg class="h-5 w-5 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -511,7 +511,7 @@ interface ModuloMensaje {
                   d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
                 />
               </svg>
-              Medidas de seguridad
+              3 · Medidas de seguridad
               @if (permissions().medidasHistorico) {
                 <span class="ml-auto text-xs font-normal normal-case tracking-normal text-gray-400">Registrado — solo lectura</span>
               }
@@ -671,9 +671,17 @@ interface ModuloMensaje {
         }
 
         @if (showPonalObservaciones()) {
-          <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-            <h3 class="text-white font-semibold flex items-center gap-2 text-sm uppercase tracking-wider mb-4">
-              Observaciones
+          <div class="bg-gray-800 rounded-lg p-4 border border-orange-500/30">
+            <h3 class="text-orange-300 font-semibold flex items-center gap-2 text-sm uppercase tracking-wider mb-4">
+              <svg class="h-5 w-5 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              4 · Gestión Ponal
             </h3>
             <label for="ponal-observaciones" class="text-xs text-gray-400 uppercase tracking-wider">
               Observaciones
