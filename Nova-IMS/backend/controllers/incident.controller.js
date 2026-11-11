@@ -53,6 +53,7 @@ function mapIncidentRow(r) {
     agency: r.agency_code || r.agency || '',
     timestamp: r.created_at || r.timestamp,
     updatedAt: r.updated_at || r.updatedAt || r.created_at || r.timestamp,
+    editVersion: Number(r.edit_version) || 0,
     involvedPeople: (r.involvedPeople || []).map((p) => {
       const expediente = String(p.comentarios || p.details || '').trim();
       return { ...p, comentarios: expediente, details: expediente };
@@ -413,6 +414,7 @@ const update = asyncHandler(async (req, res) => {
 
   const before = mapIncidentRow(await giIncidents.getIncident(id, agencyCode));
   if (!before.id) throw new HttpError(404, 'Incidente no encontrado');
+  await giIncidents.assertNoConcurrentEdit(id, b.editVersion, req.user);
 
   const newStatus = b.status || before.status;
   await giIncidents.updateIncident(

@@ -484,6 +484,8 @@ export class IncidentListComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  private formEditVersion: number | null = null;
+
   private bumpFormSyncEpoch(): void {
     this.formSyncEpoch += 1;
   }
@@ -5007,6 +5009,7 @@ export class IncidentListComponent implements OnInit, AfterViewInit, OnDestroy {
       involvedPeople: this.involvedPeopleForSave(),
       involvedPlaces: this.involvedPlacesForSave(),
       involvedVehicles: this.involvedVehiclesForSave(),
+      editVersion: this.formEditVersion ?? undefined,
     };
     this.incidentSaveInFlight = true;
     this.incidentService.updateIncident(
@@ -5106,6 +5109,7 @@ export class IncidentListComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private populateFormWithState(state: Partial<Incident>) {
+    this.formEditVersion = typeof state.editVersion === 'number' ? state.editVersion : null;
     this.beginIncidentHydrate();
     this.bumpFormSyncEpoch();
     this.locationAreaPinnedByUser =

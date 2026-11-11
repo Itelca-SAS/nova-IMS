@@ -814,6 +814,7 @@ export class MedidasComponent implements OnInit, OnChanges {
   medidasGuardadas = signal(false);
   medidasEditMode = signal(false);
   private draftBaseline: MedidasDraftSnapshot | null = null;
+  private editVersion: number | null = null;
   private readonly cerremFieldKeys: (keyof MedidasPermissions)[] = [
     'fechaCerrem',
     'resolucionCerrem',
@@ -1207,12 +1208,17 @@ export class MedidasComponent implements OnInit, OnChanges {
 
   private loadGestion() {
     this.http
-      .get<{ gestion: Gestion | null; medidas: MedidaAsignada[]; solicitud?: Solicitud | null }>(
-        `/api/incidents/${this.incidentId}/medidas`,
-      )
+      .get<{
+        gestion: Gestion | null;
+        medidas: MedidaAsignada[];
+        solicitud?: Solicitud | null;
+        editVersion?: number;
+      }>(`/api/incidents/${this.incidentId}/medidas`)
       .subscribe({
-        next: ({ gestion, medidas, solicitud }) =>
-          this.applyLoadedGestion(gestion, medidas, solicitud ?? null),
+        next: ({ gestion, medidas, solicitud, editVersion }) => {
+          this.editVersion = typeof editVersion === 'number' ? editVersion : null;
+          this.applyLoadedGestion(gestion, medidas, solicitud ?? null);
+        },
       });
   }
 
@@ -1451,7 +1457,10 @@ export class MedidasComponent implements OnInit, OnChanges {
           };
     try {
       await firstValueFrom(
-        this.http.post(`/api/incidents/${this.incidentId}/gestion`, payload),
+        this.http.post(`/api/incidents/${this.incidentId}/gestion`, {
+          ...payload,
+          editVersion: this.editVersion ?? undefined,
+        }),
       );
       this.osegGuardada.set(this.isOsegPersistida(this.form));
       this.cerremGuardada.set(this.isCerremPersistida(this.form));
@@ -1465,10 +1474,10 @@ export class MedidasComponent implements OnInit, OnChanges {
       this.loadGestion();
       return true;
     } catch (err: unknown) {
-      const e = err as { error?: { error?: { message?: string }; message?: string } };
+      const e = err as { status?: number; error?: { error?: { message?: string }; message?: string } };
       const msg =
         e?.error?.error?.message || e?.error?.message || 'Error al guardar la gestión';
-      this.showMensaje(modulo, msg, 'error');
+      this.showMensaje(modulo, msg, 'error', e?.status === 409);
       return false;
     }
   }
@@ -1534,6 +1543,7 @@ export class MedidasComponent implements OnInit, OnChanges {
           tipo_esquema: this.form.tipo_esquema,
           compartido_con: this.form.compartido_con,
           observaciones: this.form.observaciones,
+          editVersion: this.editVersion ?? undefined,
         }),
       );
       this.medidasEditMode.set(false);
@@ -1558,10 +1568,10 @@ export class MedidasComponent implements OnInit, OnChanges {
       this.medidasSaved.emit(saveDelta ?? undefined);
       return true;
     } catch (err: unknown) {
-      const e = err as { error?: { error?: { message?: string }; message?: string } };
+      const e = err as { status?: number; error?: { error?: { message?: string }; message?: string } };
       const msg =
         e?.error?.error?.message || e?.error?.message || 'Error al asignar medidas';
-      this.showMensaje('medidas', msg, 'error');
+      this.showMensaje('medidas', msg, 'error', e?.status === 409);
       return false;
     }
   }
@@ -1584,7 +1594,12 @@ export class MedidasComponent implements OnInit, OnChanges {
     );
   }
 
-  private showMensaje(modulo: ModuloMedidas, texto: string, tipo: 'ok' | 'error' = 'ok') {
+  private showMensaje(
+    modulo: ModuloMedidas,
+    texto: string,
+    tipo: 'ok' | 'error' = 'ok',
+    persistente = false,
+  ) {
     const target = {
       oseg: this.mensajeOseg,
       cerrem: this.mensajeCerrem,
@@ -1592,7 +1607,9 @@ export class MedidasComponent implements OnInit, OnChanges {
     }[modulo];
     const prev = this.mensajeTimers[modulo];
     if (prev) clearTimeout(prev);
+    delete this.mensajeTimers[modulo];
     target.set({ texto, tipo });
+    if (persistente) return;
     this.mensajeTimers[modulo] = setTimeout(() => {
       target.set(null);
       delete this.mensajeTimers[modulo];

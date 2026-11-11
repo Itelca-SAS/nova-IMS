@@ -217,13 +217,15 @@ router.get('/medidas/tipos', async (req, res, next) => {
 
 router.get('/incidents/:id/medidas', requireIncidentInAgency, async (req, res, next) => {
   try {
+    const agency = req.user?.agency_code || req.user?.agency;
     const solicitud = await medidas.getSolicitudFromPersonas(req.params.id);
     const gestion = await medidas.getGestionByIncidente(req.params.id);
+    const editVersion = await giIncidents.getEditVersion(req.params.id, agency);
     if (!gestion) {
-      return res.json({ gestion: null, medidas: [], solicitud });
+      return res.json({ gestion: null, medidas: [], solicitud, editVersion });
     }
     const lista = await medidas.getMedidasByGestion(gestion.ID_gestion);
-    res.json({ gestion, medidas: lista, solicitud });
+    res.json({ gestion, medidas: lista, solicitud, editVersion });
   } catch (err) {
     next(err);
   }
@@ -232,6 +234,7 @@ router.get('/incidents/:id/medidas', requireIncidentInAgency, async (req, res, n
 router.post('/incidents/:id/gestion', requireIncidentInAgency, async (req, res, next) => {
   try {
     const visibleId = req.params.id;
+    await giIncidents.assertNoConcurrentEdit(visibleId, req.body?.editVersion, req.user);
     const beforeGestion = await medidas.getGestionByIncidente(visibleId);
     const idGestion = await medidas.upsertGestion(visibleId, req.body, req.user);
     const gestion = await medidas.getGestionByIncidente(visibleId);
@@ -268,6 +271,7 @@ router.post('/incidents/:id/gestion', requireIncidentInAgency, async (req, res, 
 router.post('/incidents/:id/medidas', requireIncidentInAgency, async (req, res, next) => {
   try {
     const visibleId = req.params.id;
+    await giIncidents.assertNoConcurrentEdit(visibleId, req.body?.editVersion, req.user);
     let gestion = await medidas.getGestionByIncidente(visibleId);
     if (!gestion) {
       await medidas.upsertGestion(visibleId, {}, req.user);

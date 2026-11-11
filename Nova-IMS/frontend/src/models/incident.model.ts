@@ -334,6 +334,7 @@ export interface Incident {
   id: string;
   timestamp: string;
   updatedAt?: string;
+  editVersion?: number;
   status: IncidentStatus;
   event_id: string; // ID_evento
   incident_type_id?: string;

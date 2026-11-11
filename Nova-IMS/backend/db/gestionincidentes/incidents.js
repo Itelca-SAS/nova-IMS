@@ -73,6 +73,13 @@ const INCIDENT_LAST_ACTIVITY_SQL = `COALESCE(
   i.FechaHora
 )`;
 
+const AUDIT_STAMP_SQL = `CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(ai.id_transaccion_incidentes, '-', 2), '-', -1) AS UNSIGNED)`;
+
+const INCIDENT_EDIT_VERSION_SQL = `COALESCE(
+  (SELECT MAX(${AUDIT_STAMP_SQL}) FROM auditoria_incidente ai WHERE ai.incidentes_id = i.ID_incidente),
+  0
+)`;
+
 const INCIDENT_BASE_SELECT = `
   i.ID_incidente AS internal_id,
   i.ID_visible AS id,
@@ -95,6 +102,7 @@ const INCIDENT_BASE_SELECT = `
   i.IDAgencias AS agency_code,
   i.FechaHora AS created_at,
   ${INCIDENT_LAST_ACTIVITY_SQL} AS updated_at,
+  ${INCIDENT_EDIT_VERSION_SQL} AS edit_version,
   (${INCIDENT_OPERATOR_NAME_SQL}) AS operator_name`;
 
 const INCIDENT_JOINS = `
@@ -1465,6 +1473,48 @@ async function writeAudit(conn, { incidentId, user, action, changes, details, cr
   );
 }
 
+async function getEditVersion(visibleId, agencyCode) {
+  const internalId = await getInternalId(visibleId, agencyCode);
+  if (!internalId) return 0;
+  const [rows] = await pool.query(
+    `SELECT ${INCIDENT_EDIT_VERSION_SQL} AS edit_version FROM incidentes i WHERE i.ID_incidente = ?`,
+    [internalId],
+  );
+  return Number(rows[0]?.edit_version) || 0;
+}
+
+async function assertNoConcurrentEdit(visibleId, baseVersion, user) {
+  if (baseVersion === undefined || baseVersion === null || baseVersion === '') return;
+  const base = Number(baseVersion);
+  if (!Number.isFinite(base)) return;
+  const agencyCode = requireUserAgency(user);
+  const internalId = await getInternalId(visibleId, agencyCode);
+  if (!internalId) return;
+  const userCtx = await resolveUserContext(user?.sub, agencyCode);
+  const [rows] = await pool.query(
+    `SELECT COALESCE(
+              ${USER_DISPLAY_NAME_SQL},
+              NULLIF(JSON_UNQUOTE(JSON_EXTRACT(ai.detalles, '$.actorDisplayName')), 'null')
+            ) AS actor
+     FROM auditoria_incidente ai
+     LEFT JOIN usuarios u
+       ON u.ID_Usuario = ai.usuarios_id
+      AND UPPER(u.ID_Agencia) = UPPER(ai.Id_agencia)
+     WHERE ai.incidentes_id = ?
+       AND ${AUDIT_STAMP_SQL} > ?
+       AND NOT (ai.usuarios_id <=> ?)
+     ORDER BY ai.fecha DESC
+     LIMIT 1`,
+    [internalId, base, userCtx.userId],
+  );
+  if (!rows.length) return;
+  const actor = String(rows[0].actor || '').trim() || 'Otro usuario';
+  throw new HttpError(
+    409,
+    `${actor} modificó este incidente mientras usted lo editaba. Sus cambios no se guardaron: cierre la pestaña del incidente y ábralo de nuevo para ver la versión actual.`,
+  );
+}
+
 async function loadAuditLogs(visibleId) {
   const internalId = await getInternalId(visibleId);
   if (!internalId) return [];
@@ -1508,6 +1558,8 @@ module.exports = {
   updateIncident,
   deleteIncident,
   writeAudit,
+  getEditVersion,
+  assertNoConcurrentEdit,
   loadAuditLogs,
   emailAllowed,
   mapIncidentRow,
