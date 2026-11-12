@@ -67,7 +67,7 @@ Incluye dashboard con mapa, registro y seguimiento de incidentes, medidas de seg
 ### 1️⃣ Clonar el repositorio
 
 ```bash
-git clone https://github.com/Rogelio-Menco-Itelca/nova-IMS.git
+git clone https://github.com/Itelca-SAS/nova-IMS.git
 cd nova-IMS/Nova-IMS
 ```
 
