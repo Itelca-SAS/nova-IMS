@@ -181,7 +181,9 @@
                     {{ formatCreationDate(incident.timestamp) }}
                   </td>
                   <td class="whitespace-nowrap px-4 py-3 font-medium text-white">{{ incident.id }}</td>
-                  <td class="px-4 py-3 font-medium text-white">{{ incident.type }}</td>
+                  <td class="ims-dashboard-type-cell px-4 py-3 font-medium text-white">
+                    <span class="ims-dashboard-type" [attr.title]="incident.type">{{ incident.type }}</span>
+                  </td>
                   <td class="px-4 py-3">
                     <span [class]="'font-semibold ' + getPriorityColor(incident.priority)">{{
                       incident.priority

@@ -281,6 +281,18 @@
   overflow-y: hidden;
 }
 
+.ims-dashboard-type-cell {
+  height: calc(2lh + 1.5rem);
+}
+
+.ims-dashboard-type {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
 .ims-dashboard-table-wrap {
   display: none;
   min-height: 0;
