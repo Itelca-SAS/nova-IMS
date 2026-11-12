@@ -182,7 +182,7 @@ function extractNewCommentPlain(incoming, previousSerialized) {
   if (!incomingText) return '';
   if (incomingText === prev) return '';
 
-  let extracted = '';
+  let extracted;
   if (prev && incomingText.startsWith(prev)) {
     extracted = plainCommentText(incomingText.slice(prev.length).replace(/^\r?\n?---\r?\n?/, ''));
   } else if (!incomingText.includes('\n---\n') && !/^\[[^\]]+\]/.test(incomingText)) {

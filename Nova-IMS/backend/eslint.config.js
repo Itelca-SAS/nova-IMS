@@ -22,6 +22,7 @@ module.exports = [
         URL: 'readonly',
         fetch: 'readonly',
         Buffer: 'readonly',
+        AbortSignal: 'readonly',
       },
     },
     rules: {
@@ -51,6 +52,6 @@ module.exports = [
     },
   },
   {
-    ignores: ['node_modules/', 'sql/', 'scripts/'],
+    ignores: ['node_modules/', 'coverage/', 'sql/', 'scripts/'],
   },
 ];

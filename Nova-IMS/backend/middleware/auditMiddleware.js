@@ -1,5 +1,6 @@
 
 const { recordAudit } = require('../utils/auditTrail');
+const logger = require('../utils/logger');
 
 const AUDITED_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -133,7 +134,8 @@ function auditMiddleware(req, res, next) {
         resultado: 'exitoso',
         detalle: rule.detalle ? rule.detalle(req) : rule.accion,
       });
-    } catch {
+    } catch (err) {
+      logger.warn('[audit] No se pudo registrar la auditoría automática:', err?.message || err);
     }
   });
 

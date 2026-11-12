@@ -9,6 +9,7 @@
     "dev": "nodemon server.js",
     "db:import": "node sql/import-db.js",
     "ldap:test": "node scripts/ldap-login-test.js",
+    "lint": "eslint .",
     "test": "node --test \"test/**/*.test.js\"",
     "test:coverage": "node -e \"require('node:fs').mkdirSync('coverage',{recursive:true})\" && node --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=coverage/lcov.info --test \"test/**/*.test.js\""
   },
