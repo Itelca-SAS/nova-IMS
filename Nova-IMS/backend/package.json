@@ -22,7 +22,7 @@
     "ldapts": "^8.1.8",
     "morgan": "^1.10.0",
     "mysql2": "^3.11.0",
-    "nodemailer": "^8.0.7",
+    "nodemailer": "^10.4.0",
     "socket.io": "^4.8.0"
   },
   "devDependencies": {
