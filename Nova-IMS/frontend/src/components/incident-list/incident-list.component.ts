@@ -5017,6 +5017,8 @@ export class IncidentListComponent implements OnInit, AfterViewInit, OnDestroy {
       (saved) => {
       this.incidentSaveInFlight = false;
       const savedUiStatus = catalogStatusToUiStatus(String(saved.status ?? '').trim());
+      const requestedUiStatus = catalogStatusToUiStatus(String(finalData.status ?? '').trim());
+      const statusKept = requestedUiStatus !== savedUiStatus;
       const reiterationNumber =
         savedUiStatus === 'Reiteraciones' && draftComment
           ? this.reiteracionesCount(base) + 1
@@ -5024,7 +5026,7 @@ export class IncidentListComponent implements OnInit, AfterViewInit, OnDestroy {
       const notice = this.buildIncidentUpdateNotification(
         incidentId,
         base,
-        finalData,
+        statusKept ? { ...finalData, status: saved.status } : finalData,
         draftComment,
         reiterationNumber,
       );
@@ -5045,6 +5047,13 @@ export class IncidentListComponent implements OnInit, AfterViewInit, OnDestroy {
         this.applyDetailTab('medidas');
       }
       this.notificationService.addNotification(notice.title, notice.message, incidentId);
+      if (statusKept) {
+        this.notificationService.addNotification(
+          'Estado conservado',
+          `Se guardó la información de «${requestedUiStatus}». ${incidentId} se mantiene en «${savedUiStatus}», que es la etapa más avanzada.`,
+          incidentId,
+        );
+      }
       this.clearAgregarComentario();
       this.markFormSyncedWithServer(incidentId);
       this.completePendingLeaveAfterSave();

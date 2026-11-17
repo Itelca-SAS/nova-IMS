@@ -416,12 +416,11 @@ const update = asyncHandler(async (req, res) => {
   if (!before.id) throw new HttpError(404, 'Incidente no encontrado');
   await giIncidents.assertNoConcurrentEdit(id, b.editVersion, req.user);
 
-  const newStatus = b.status || before.status;
   await giIncidents.updateIncident(
     id,
     {
       ...b,
-      status: newStatus,
+      status: b.status || before.status,
       locationPhoneNumber: fmtLocationPhoneVitacora(b.locationPhoneNumber),
     },
     req.user,
@@ -429,6 +428,7 @@ const update = asyncHandler(async (req, res) => {
 
   const afterForAuditBase = mapIncidentRow(await giIncidents.getIncident(id, agencyCode));
   if (!afterForAuditBase.id) throw new HttpError(404, 'Incidente no encontrado');
+  const newStatus = afterForAuditBase.status;
 
   const afterForAudit = {
     ...afterForAuditBase,

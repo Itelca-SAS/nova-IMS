@@ -19,7 +19,7 @@ const {
 } = require('./people');
 const { insertVehicleComment, deleteVehicleCommentsForIncident } = require('./vehicles');
 const { linkLocationToIncident, syncLinkedLocationCoords } = require('./location');
-const { isFinalState, requiresMedidas, isForwardStatusTransition, isTransitionAllowed, requiresComment } = require('./transitions');
+const { isFinalState, requiresMedidas, isForwardStatusTransition, isTransitionAllowed, requiresComment, keepsMostAdvancedStatus } = require('./transitions');
 const { hasAssignedMedidas, getGestionByIncidente } = require('./medidas');
 const {
   isRiesgoOrdinario,
@@ -1367,7 +1367,6 @@ async function updateIncident(visibleId, body, user) {
   const internalId = await getInternalId(visibleId, agencyCode);
   if (!internalId) return null;
   const userCtx = await resolveUserContext(user?.sub, agencyCode);
-  const cats = await resolveCatalogIds(agencyCode, body);
 
   const [currentRows] = await pool.query(
     `SELECT es.Nombre_estado FROM incidentes i
@@ -1377,18 +1376,22 @@ async function updateIncident(visibleId, body, user) {
   );
   const currentStatusRaw = currentRows[0]?.Nombre_estado;
   const currentStatus = mapStatusFromGi(currentStatusRaw);
-  const newStatus = body.status;
+  const effectiveBody = keepsMostAdvancedStatus(currentStatus, body.status, agencyCode)
+    ? { ...body, status: currentStatus }
+    : body;
+  const newStatus = effectiveBody.status;
+  const cats = await resolveCatalogIds(agencyCode, effectiveBody);
 
   assertIncidentStatusChange(currentStatus, newStatus, agencyCode);
   await assertPonalEventAllowed(agencyCode, newStatus, cats.eventoId);
   await assertRiesgoTransitionRules(agencyCode, currentStatus, newStatus, visibleId);
-  await assertCommentIfRequired(currentStatus, newStatus, internalId, body);
+  await assertCommentIfRequired(currentStatus, newStatus, internalId, effectiveBody);
   await assertMedidasIfRequired(newStatus, visibleId, agencyCode);
 
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    await persistIncidentUpdate(conn, internalId, body, userCtx, cats);
+    await persistIncidentUpdate(conn, internalId, effectiveBody, userCtx, cats);
     await conn.commit();
     return visibleId;
   } catch (e) {

@@ -93,6 +93,20 @@ function isForwardStatusTransition(fromStatus, toStatus, agency) {
   return toRank > fromRank;
 }
 
+function keepsMostAdvancedStatus(currentStatus, requestedStatus, agency) {
+  const code = String(agency || 'CSJ')
+    .trim()
+    .toUpperCase();
+  if (code === 'POL') return false;
+  if (!requestedStatus || requestedStatus === currentStatus) return false;
+  if (requestedStatus === 'Reiteraciones' || requestedStatus === 'Nuevo') return false;
+  if (isFinalState(currentStatus)) return false;
+  const fromRank = WORKFLOW_RANK_CSJ[currentStatus];
+  const toRank = WORKFLOW_RANK_CSJ[requestedStatus];
+  if (fromRank === undefined || toRank === undefined) return false;
+  return toRank < fromRank;
+}
+
 function getAllowedNextStates(currentStatus) {
   return TRANSITIONS[currentStatus]?.next ?? [];
 }
@@ -125,6 +139,7 @@ module.exports = {
   getWorkflowRanks,
   statusWorkflowRank,
   isForwardStatusTransition,
+  keepsMostAdvancedStatus,
   getAllowedNextStates,
   isTransitionAllowed,
   requiresMedidas,
