@@ -207,7 +207,10 @@ async function upsertGestion(visibleId, body, user) {
   const tipoEsquema = pickText(body.tipo_esquema, prev?.tipo_esquema);
   const compartidoCon = pickText(body.compartido_con, prev?.compartido_con);
   const observaciones = pickText(body.observaciones, prev?.observaciones);
-  const observacionesPonal = pickText(body.observaciones_ponal, prev?.observaciones_ponal)?.slice(0, 500) ?? null;
+  const observacionesPonal =
+    nullIfEmpty(
+      body.observaciones_ponal !== undefined ? body.observaciones_ponal : prev?.observaciones_ponal,
+    )?.slice(0, 500) ?? null;
 
   assertCerremDatesOrder(fechaCerrem, fechaResolucion);
 
@@ -271,63 +274,100 @@ async function upsertGestion(visibleId, body, user) {
   return result.insertId;
 }
 
+async function normalizeMedidasInput(medidas, agency, idGestion) {
+  const items = medidas.map((m) => {
+    const tipo = Number(m?.ID_tipo_medida);
+    if (!Number.isInteger(tipo) || tipo <= 0) {
+      throw new HttpError(400, 'Tipo de medida de seguridad inválido.');
+    }
+    const cantidad = nullIfEmpty(m?.cantidad) === null ? 1 : Number(m.cantidad);
+    if (!Number.isInteger(cantidad) || cantidad < 1) {
+      throw new HttpError(400, 'La cantidad de cada medida debe ser un número entero mayor o igual a 1.');
+    }
+    const observacion = nullIfEmpty(m?.observacion_medida);
+    if (observacion && observacion.length > 300) {
+      throw new HttpError(400, 'La observación de una medida no puede superar 300 caracteres.');
+    }
+    return { tipo, cantidad, observacion };
+  });
+
+  const ids = [...new Set(items.map((m) => m.tipo))];
+  const [rows] = await pool.query(
+    `SELECT ID_tipo_medida FROM tipos_medida_seguridad
+     WHERE ID_tipo_medida IN (?)
+       AND ((ID_Agencia = ? AND Activo = 1)
+         OR ID_tipo_medida IN (
+           SELECT ID_tipo_medida FROM incidente_medidas WHERE ID_gestion = ? AND asignado = 1
+         ))`,
+    [ids, agency, idGestion],
+  );
+  if (rows.length !== ids.length) {
+    throw new HttpError(400, 'Una o más medidas no están disponibles para la agencia.');
+  }
+  return items;
+}
+
 async function asignarMedidas(idGestion, medidas, user, meta = {}) {
   const agency = user?.agency_code || user?.agency;
   const userId = user?.sub;
+  const items = await normalizeMedidasInput(medidas, agency, idGestion);
 
-  await pool.query(
-    `UPDATE incidente_medidas SET asignado = 0, fecha_retiro = NOW()
-     WHERE ID_gestion = ?`,
-    [idGestion],
-  );
-
-  for (const m of medidas) {
-    await pool.query(
-      `INSERT INTO incidente_medidas
-         (ID_gestion, ID_tipo_medida, asignado, cantidad,
-          observacion_medida, ID_usuario_asigna, ID_Agencia)
-       VALUES (?, ?, 1, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         asignado = 1, cantidad = VALUES(cantidad),
-         observacion_medida = VALUES(observacion_medida),
-         fecha_asignacion = NOW(), fecha_retiro = NULL`,
-      [
-        idGestion,
-        m.ID_tipo_medida,
-        m.cantidad ?? 1,
-        m.observacion_medida ?? null,
-        userId,
-        agency,
-      ],
-    );
-  }
-
-  if (
-    meta.tipo_esquema !== undefined ||
-    meta.compartido_con !== undefined ||
-    meta.observaciones !== undefined
-  ) {
-    const [metaRows] = await pool.query(
-      `SELECT tipo_esquema, compartido_con, observaciones
-       FROM gestion_medidas WHERE ID_gestion = ?`,
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    await conn.query(
+      `UPDATE incidente_medidas SET asignado = 0, fecha_retiro = NOW()
+       WHERE ID_gestion = ?`,
       [idGestion],
     );
-    const prev = metaRows[0] || {};
-    const tipoEsquema =
-      meta.tipo_esquema !== undefined ? nullIfEmpty(meta.tipo_esquema) : prev.tipo_esquema ?? null;
-    const compartidoCon =
-      meta.compartido_con !== undefined
-        ? nullIfEmpty(meta.compartido_con)
-        : prev.compartido_con ?? null;
-    const observaciones =
-      meta.observaciones !== undefined ? nullIfEmpty(meta.observaciones) : prev.observaciones ?? null;
 
-    await pool.query(
-      `UPDATE gestion_medidas SET
-         tipo_esquema = ?, compartido_con = ?, observaciones = ?
-       WHERE ID_gestion = ?`,
-      [tipoEsquema, compartidoCon, observaciones, idGestion],
-    );
+    for (const m of items) {
+      await conn.query(
+        `INSERT INTO incidente_medidas
+           (ID_gestion, ID_tipo_medida, asignado, cantidad,
+            observacion_medida, ID_usuario_asigna, ID_Agencia)
+         VALUES (?, ?, 1, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+           asignado = 1, cantidad = VALUES(cantidad),
+           observacion_medida = VALUES(observacion_medida),
+           fecha_asignacion = NOW(), fecha_retiro = NULL`,
+        [idGestion, m.tipo, m.cantidad, m.observacion, userId, agency],
+      );
+    }
+
+    if (
+      meta.tipo_esquema !== undefined ||
+      meta.compartido_con !== undefined ||
+      meta.observaciones !== undefined
+    ) {
+      const [metaRows] = await conn.query(
+        `SELECT tipo_esquema, compartido_con, observaciones
+         FROM gestion_medidas WHERE ID_gestion = ?`,
+        [idGestion],
+      );
+      const prev = metaRows[0] || {};
+      const tipoEsquema =
+        meta.tipo_esquema !== undefined ? nullIfEmpty(meta.tipo_esquema) : prev.tipo_esquema ?? null;
+      const compartidoCon =
+        meta.compartido_con !== undefined
+          ? nullIfEmpty(meta.compartido_con)
+          : prev.compartido_con ?? null;
+      const observaciones =
+        meta.observaciones !== undefined ? nullIfEmpty(meta.observaciones) : prev.observaciones ?? null;
+
+      await conn.query(
+        `UPDATE gestion_medidas SET
+           tipo_esquema = ?, compartido_con = ?, observaciones = ?
+         WHERE ID_gestion = ?`,
+        [tipoEsquema, compartidoCon, observaciones, idGestion],
+      );
+    }
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
   }
 }
 

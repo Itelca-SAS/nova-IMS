@@ -319,11 +319,6 @@ export function getMedidasPermissions(
   }
 }
 
-/** Antes ocultaba «Enviado a CERREM»; ese estado ya no existe (ahora es «En gestión UNP»). */
-export function isCsjLegacyEnviadoCerremStatus(_status: string): boolean {
-  return false;
-}
-
 export const MEDIADAS_WORKFLOW_STATUSES = [
   'En gestión OSEG',
   'En gestión UNP',

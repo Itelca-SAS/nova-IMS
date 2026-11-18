@@ -7,7 +7,7 @@ const auditMiddleware = require('../middleware/auditMiddleware');
 const { recordAudit, formatAuditDetailsText } = require('../utils/auditTrail');
 const { isRiesgoOrdinario } = require('../db/gestionincidentes/riesgoNivel');
 const perm = require('../middleware/permissions');
-const { getAllowedNextStates } = require('../db/gestionincidentes/transitions');
+const { getAllowedNextStates, isFinalState } = require('../db/gestionincidentes/transitions');
 const { mapStatusToGi } = require('../db/gestionincidentes/maps');
 
 const authCtrl = require('../controllers/auth.controller');
@@ -44,6 +44,27 @@ async function requireIncidentInAgency(req, res, next) {
     const agency = req.user?.agency_code || req.user?.agency;
     const internalId = agency ? await giIncidents.getInternalId(req.params.id, agency) : null;
     if (!internalId) return next(new HttpError(404, 'Incidente no encontrado'));
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function requireIncidentOpen(req, res, next) {
+  try {
+    const agency = String(req.user?.agency_code || req.user?.agency || '').toUpperCase();
+    const [rows] = await pool.query(
+      `SELECT es.Nombre_estado AS estado FROM incidentes i
+       JOIN estadosincidentes es ON es.ID_estado = i.ID_estado
+       WHERE i.ID_visible = ? AND UPPER(i.IDAgencias) = ?`,
+      [req.params.id, agency],
+    );
+    const estado = rows[0]?.estado;
+    if (isFinalState(estado)) {
+      return next(
+        new HttpError(409, `El incidente está en estado final "${estado}" y no puede modificarse.`),
+      );
+    }
     next();
   } catch (err) {
     next(err);
@@ -231,7 +252,7 @@ router.get('/incidents/:id/medidas', requireIncidentInAgency, async (req, res, n
   }
 });
 
-router.post('/incidents/:id/gestion', requireIncidentInAgency, async (req, res, next) => {
+router.post('/incidents/:id/gestion', requireIncidentInAgency, requireIncidentOpen, async (req, res, next) => {
   try {
     const visibleId = req.params.id;
     await giIncidents.assertNoConcurrentEdit(visibleId, req.body?.editVersion, req.user);
@@ -268,7 +289,7 @@ router.post('/incidents/:id/gestion', requireIncidentInAgency, async (req, res, 
   }
 });
 
-router.post('/incidents/:id/medidas', requireIncidentInAgency, async (req, res, next) => {
+router.post('/incidents/:id/medidas', requireIncidentInAgency, requireIncidentOpen, async (req, res, next) => {
   try {
     const visibleId = req.params.id;
     await giIncidents.assertNoConcurrentEdit(visibleId, req.body?.editVersion, req.user);

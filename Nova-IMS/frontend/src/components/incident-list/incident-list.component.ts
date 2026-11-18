@@ -54,7 +54,6 @@ import {
   requiresMedidasBeforeClose,
   getCsjStatusDisabledReason,
   statusOptionLabel,
-  isCsjLegacyEnviadoCerremStatus,
   isEventoPonal,
   type GestionSnapshot,
 } from '../../utils/medidas-permissions';
@@ -2303,15 +2302,6 @@ export class IncidentListComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.ponalBlockedByEvent(name)) return false;
 
     const agency = this.authService.currentUser()?.agency ?? 'CSJ';
-    if (
-      isCsjMedidasWorkflow(agency) &&
-      isCsjLegacyEnviadoCerremStatus(name) &&
-      name !== effectiveCurrent &&
-      catalogStatusToUiStatus(name) !== catalogStatusToUiStatus(effectiveCurrent)
-    ) {
-      return false;
-    }
-
     if (this.activeTabId() !== 'new') {
       const savedStatusUi = catalogStatusToUiStatus(
         String(this.activeIncident()?.status ?? '').trim(),
