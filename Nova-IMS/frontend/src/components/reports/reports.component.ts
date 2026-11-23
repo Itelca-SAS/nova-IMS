@@ -232,8 +232,9 @@ export class ReportsComponent implements OnInit {
       'Fecha creación',
       'Última actualización',
     ];
+    const cell = (v: unknown) => `"${String(v ?? '').replaceAll('"', '""')}"`;
     const lines = [
-      headers.join(','),
+      headers.map(cell).join(';'),
       ...rows.map((r) =>
         [
           r.id,
@@ -242,11 +243,13 @@ export class ReportsComponent implements OnInit {
           r.status,
           r.origin,
           r.phone,
-          `"${(r.location || '').replaceAll('"', '""')}"`,
+          r.location,
           r.operator,
-          r.timestamp?.slice(0, 19) ?? '',
-          r.updatedAt?.slice(0, 19) ?? '',
-        ].join(','),
+          r.timestamp?.slice(0, 19),
+          r.updatedAt?.slice(0, 19),
+        ]
+          .map(cell)
+          .join(';'),
       ),
     ];
     const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
