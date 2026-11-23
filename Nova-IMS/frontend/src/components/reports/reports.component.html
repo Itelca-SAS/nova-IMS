@@ -1,4 +1,4 @@
-<div class="space-y-0">
+<div [class]="activeTab() === 'pbi' ? 'flex flex-1 flex-col' : 'space-y-0'">
   <!-- ===== SELECTOR DE PESTAÑA ===== -->
   <div class="flex gap-0 mb-6">
     <!-- Botón Analytics -->
@@ -482,8 +482,8 @@
   <!-- ================================================================ -->
   @if (activeTab() === 'pbi') {
     <div
-      class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden"
-      style="height: calc(100vh - 200px); min-height: 540px"
+      class="flex-1 bg-gray-800 rounded-xl border border-gray-700 overflow-hidden"
+      style="min-height: 540px"
     >
       @if (pbiSafeUrl()) {
         <iframe

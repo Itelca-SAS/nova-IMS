@@ -25,6 +25,7 @@ type Tab = 'analytics' | 'pbi';
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './reports.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'flex flex-1 flex-col' },
 })
 export class ReportsComponent implements OnInit {
   private readonly svc = inject(ReportsService);
