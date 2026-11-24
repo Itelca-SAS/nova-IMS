@@ -2762,7 +2762,6 @@ export class IncidentListComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       error: (err) => {
         if (err?.status === 404) {
-          this.clearVehicleCatalogFields(index);
           this.vehicleLastLookupPlate.delete(index);
           return;
         }
