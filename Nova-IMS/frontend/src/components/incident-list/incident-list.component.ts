@@ -1064,8 +1064,11 @@ export class IncidentListComponent implements OnInit, AfterViewInit, OnDestroy {
       await this.initMap(lat, lng);
       return;
     }
-    this.map.setCenter({ lat, lng });
-    this.map.setZoom(zoom);
+    const map = this.map;
+    map.moveCamera({ center: { lat, lng }, zoom });
+    google.maps.event.addListenerOnce(map, 'idle', () => {
+      if (map.getZoom() !== zoom) map.moveCamera({ center: { lat, lng }, zoom });
+    });
     if (this.marker) {
       this.marker.setPosition({ lat, lng });
     } else {
