@@ -1023,7 +1023,7 @@
                     etc.).
                   </p>
                 }
-                @for (placeGroup of involvedPlaces.controls; track involvedListsEpoch() + ':p:' + $index) {
+                @for (placeGroup of involvedPlaces.controls; track placeGroup) {
                   <div
                     [formGroupName]="$index"
                     class="bg-gray-700/50 p-4 rounded-lg border border-gray-600/50 relative animate-fadeIn"
@@ -1210,7 +1210,7 @@
                     Registre vehículos relacionados con el incidente (placa, marca, color, etc.).
                   </p>
                 }
-                @for (vehicleGroup of involvedVehicles.controls; track involvedListsEpoch() + ':v:' + $index) {
+                @for (vehicleGroup of involvedVehicles.controls; track vehicleGroup) {
                   <div
                     [formGroupName]="$index"
                     class="bg-gray-700/50 p-4 rounded-lg border border-gray-600/50 relative animate-fadeIn"
