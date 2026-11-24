@@ -1639,6 +1639,20 @@
               <span class="material-icons ims-title-icon text-[22px] leading-none" aria-hidden="true">badge</span>
               Registro de Personas
             </h3>
+            <div class="relative w-full sm:max-w-sm sm:ml-auto">
+              <label for="people-search" class="sr-only">Buscar persona por nombre o documento</label>
+              <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                <span class="material-icons text-[18px] leading-none" aria-hidden="true">search</span>
+              </span>
+              <input
+                id="people-search"
+                type="text"
+                [value]="peopleSearch()"
+                (input)="onPeopleSearch($event)"
+                placeholder="Buscar por nombre o número de documento..."
+                class="bg-gray-700 border border-gray-600 text-white rounded-md py-2 pl-10 pr-3 focus:ring-indigo-500 focus:border-indigo-500 w-full"
+              />
+            </div>
             <button
               (click)="openAddPersonForm()"
               class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition-colors duration-200 flex items-center gap-2"
@@ -1771,7 +1785,11 @@
                 } @empty {
                   <tr class="border-b border-gray-700">
                     <td colspan="7" class="text-center py-12 text-gray-500 italic">
-                      No hay personas registradas en el sistema.
+                      @if (peopleSearch().trim()) {
+                        No hay personas que coincidan con «{{ peopleSearch().trim() }}».
+                      } @else {
+                        No hay personas registradas en el sistema.
+                      }
                     </td>
                   </tr>
                 }
@@ -1782,7 +1800,7 @@
             ariaLabel="Paginación de personas"
             [currentPage]="peoplePage()"
             [totalPages]="peopleTotalPages()"
-            [hasItems]="people().length > 0"
+            [hasItems]="filteredPeople().length > 0"
             (previous)="previousPeoplePage()"
             (next)="nextPeoplePage()"
           />

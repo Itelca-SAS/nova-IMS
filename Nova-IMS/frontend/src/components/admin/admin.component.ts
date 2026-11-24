@@ -412,12 +412,32 @@ export class AdminComponent implements OnInit, AfterViewInit, OnDestroy {
     adminSlicePage(this.incidentTypes(), this.incidentTypesPage(), this.adminListPageSize()),
   );
 
+  peopleSearch = signal('');
+
+  filteredPeople = computed(() => {
+    const fold = (s: unknown) =>
+      String(s ?? '')
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .toLowerCase();
+    const term = fold(this.peopleSearch()).trim();
+    const list = this.people();
+    if (!term) return list;
+    const digits = term.replace(/\D/g, '');
+    const words = term.split(/\s+/).filter(Boolean);
+    return list.filter((person) => {
+      const name = fold(person.name);
+      if (words.every((w) => name.includes(w))) return true;
+      return digits.length > 0 && String(person.documentId ?? '').replace(/\D/g, '').includes(digits);
+    });
+  });
+
   peopleTotalPages = computed(() =>
-    adminTotalPages(this.people().length, this.adminListPageSize()),
+    adminTotalPages(this.filteredPeople().length, this.adminListPageSize()),
   );
 
   paginatedPeople = computed(() =>
-    adminSlicePage(this.people(), this.peoplePage(), this.adminListPageSize()),
+    adminSlicePage(this.filteredPeople(), this.peoplePage(), this.adminListPageSize()),
   );
 
   filteredResponseProtocols = computed(() => {
@@ -691,7 +711,7 @@ export class AdminComponent implements OnInit, AfterViewInit, OnDestroy {
         );
         break;
       case 'people':
-        clamp(this.peoplePage(), this.people().length, (n) => this.peoplePage.set(n));
+        clamp(this.peoplePage(), this.filteredPeople().length, (n) => this.peoplePage.set(n));
         break;
       default:
         break;
@@ -1050,6 +1070,11 @@ export class AdminComponent implements OnInit, AfterViewInit, OnDestroy {
   onSearch(event: Event): void {
     this.userSearchTerm.set((event.target as HTMLInputElement).value);
     this.operatorsPage.set(1);
+  }
+
+  onPeopleSearch(event: Event): void {
+    this.peopleSearch.set((event.target as HTMLInputElement).value);
+    this.peoplePage.set(1);
   }
 
   onResponseProtocolSearch(event: Event): void {
