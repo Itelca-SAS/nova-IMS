@@ -541,6 +541,8 @@ const sendEmail = asyncHandler(async (req, res) => {
   incident.closedAt = resolveClosedAt(incident, allAuditLogs);
   incident.auditLogs = allAuditLogs.length > 0 ? [allAuditLogs[allAuditLogs.length - 1]] : [];
   incident.latestComment = await giIncidents.loadLatestComment(incRaw.internal_id);
+  incident.commentHistory = await giIncidents.loadCommentHistory(incRaw.internal_id);
+  incident.statusHistory = await giIncidents.loadStatusHistory(incRaw.internal_id);
 
   const gestion = await giMedidas.getGestionByIncidente(id);
   incident.gestion = gestion;

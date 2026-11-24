@@ -280,56 +280,93 @@ function formatDocument(person) {
   return '';
 }
 
-function formatPersonText(p, index) {
-  const lines = [`  ${index}. ${dash(p.name)} (${dash(p.role)})`];
-  const doc = formatDocument(p);
-  if (doc) lines.push(`     Documento: ${doc}`);
-  const gender = String(p.gender || '').trim();
-  if (gender) lines.push(`     Género: ${gender}`);
-  const phone = String(p.phone || p.contact || '').trim();
-  if (phone) lines.push(`     Teléfono/Contacto: ${phone}`);
-  if (p.address) lines.push(`     Dirección: ${p.address}`);
-  if (p.details) lines.push(`     Detalles: ${p.details}`);
+function text(value) {
+  return String(value ?? '').trim();
+}
+
+function personRoleLabel(p) {
+  const role = text(p.role || p.roleName);
+  const cargo = text(p.cargo);
+  if (role && cargo) return `${role} – ${cargo}`;
+  return role || cargo;
+}
+
+function personFields(p) {
+  return [
+    ['Documento', formatDocument(p)],
+    ['Género', text(p.gender)],
+    ['Contacto', text(p.phone || p.contact)],
+    ['Dirección', text(p.address)],
+    ['Ubicación de expediente', text(p.comentarios || p.details)],
+  ].filter(([, v]) => v);
+}
+
+function placeFields(pl) {
+  const area = [...new Set([text(pl.municipalityName), text(pl.departmentName)].filter(Boolean))].join(', ');
+  return [
+    ['Dirección', text(pl.address)],
+    ['Municipio / departamento', area],
+    ['Contacto', text(pl.contact)],
+    ['Comentarios', text(pl.comments)],
+  ].filter(([, v]) => v);
+}
+
+function vehicleFields(v) {
+  const specs = [v.make, v.model, v.color].map(text).filter(Boolean);
+  return [
+    ['Marca / modelo / color', specs.join(' · ')],
+    ['Registrado', v.incidentDate ? formatDateTime(v.incidentDate) : ''],
+    ['Comentarios', text(v.details)],
+  ].filter(([, val]) => val);
+}
+
+function personTitle(p) {
+  const role = personRoleLabel(p);
+  return role ? `${dash(p.name)} (${role})` : dash(p.name);
+}
+
+function placeTitle(pl) {
+  const role = text(pl.roleName || pl.role);
+  const name = text(pl.name);
+  if (role && name) return `${role} — ${name}`;
+  return role || name || 'Lugar';
+}
+
+function vehicleTitle(v) {
+  const role = text(v.role);
+  return role ? `Placa ${dash(v.plate)} (${role})` : `Placa ${dash(v.plate)}`;
+}
+
+function formatItemText(title, fields, index) {
+  const lines = [`  ${index}. ${title}`];
+  for (const [label, value] of fields) lines.push(`     ${label}: ${value}`);
   return lines.join('\n');
 }
 
-function formatVehicleText(v, index) {
-  const lines = [`  ${index}. Placa: ${dash(v.plate)} | Rol: ${dash(v.role)}`];
-  const specs = [v.make, v.model, v.color].filter((x) => String(x || '').trim());
-  if (specs.length) lines.push(`     Marca/Modelo/Color: ${specs.join(' | ')}`);
-  if (v.incidentDate) {
-    lines.push(`     Registrado en incidente: ${formatDateTime(v.incidentDate)}`);
-  }
-  if (v.details) lines.push(`     Detalles: ${v.details}`);
-  return lines.join('\n');
+function formatItemHtml(title, fields) {
+  const rows = fields
+    .map(
+      ([label, value]) =>
+        `<div style="font-size:13px;color:#374151;"><span style="color:#6b7280;">${escapeHtml(label)}:</span> ${escapeHtml(value)}</div>`,
+    )
+    .join('');
+  return `
+        <div style="margin:0 0 8px;padding:10px 12px;background:#ffffff;border:1px solid #e5e7eb;border-left:3px solid #6366f1;border-radius:6px;">
+          <div style="font-size:14px;font-weight:600;color:#111827;margin-bottom:4px;">${escapeHtml(title)}</div>
+          ${rows}
+        </div>`;
 }
 
-function formatPersonHtml(p) {
-  const doc = formatDocument(p);
-  const phone = String(p.phone || p.contact || '').trim();
-  const bits = [`<strong>${escapeHtml(dash(p.name))}</strong> (${escapeHtml(dash(p.role))})`];
-  if (doc) bits.push(`Documento: ${escapeHtml(doc)}`);
-  const gender = String(p.gender || '').trim();
-  if (gender) bits.push(`Género: ${escapeHtml(gender)}`);
-  if (phone) bits.push(`Teléfono/Contacto: ${escapeHtml(phone)}`);
-  if (p.address) bits.push(`Dirección: ${escapeHtml(p.address)}`);
-  if (p.details) bits.push(`Detalles: ${escapeHtml(p.details)}`);
-  return `<li style="margin-bottom:8px;">${bits.join('<br>')}</li>`;
+function formatListText(list, toTitle, toFields, emptyLabel) {
+  if (!list.length) return `  ${emptyLabel}`;
+  return list.map((item, i) => formatItemText(toTitle(item), toFields(item), i + 1)).join('\n');
 }
 
-function formatVehicleHtml(v) {
-  const specs = [v.make, v.model, v.color].filter((x) => String(x || '').trim());
-  const bits = [
-    `<strong>Placa ${escapeHtml(dash(v.plate))}</strong> — Rol: ${escapeHtml(dash(v.role))}`,
-  ];
-  if (specs.length) {
-    bits.push(`Marca/Modelo/Color: ${escapeHtml(specs.join(' | '))}`);
+function formatListHtml(list, toTitle, toFields, emptyLabel) {
+  if (!list.length) {
+    return `<p style="margin:0;color:#6b7280;font-size:13px;">${escapeHtml(emptyLabel)}</p>`;
   }
-  if (v.incidentDate) {
-    bits.push(`Registrado: ${escapeHtml(formatDateTime(v.incidentDate))}`);
-  }
-  if (v.details) bits.push(`Detalles: ${escapeHtml(v.details)}`);
-  return `<li style="margin-bottom:8px;">${bits.join('<br>')}</li>`;
+  return list.map((item) => formatItemHtml(toTitle(item), toFields(item))).join('');
 }
 
 function parseAuditDetails(details) {
@@ -416,25 +453,6 @@ function resolveLatestCommentEntry(incident) {
     };
   }
   return latestIncidentNote(incident?.comments);
-}
-
-function formatLatestCommentText(incident) {
-  const e = resolveLatestCommentEntry(incident);
-  if (!e?.text) return '(sin comentario)';
-  const when = e.timestamp || 'Sin fecha';
-  return `[${when}]\n${e.text}`;
-}
-
-function formatLatestCommentHtml(incident) {
-  const e = resolveLatestCommentEntry(incident);
-  if (!e?.text) {
-    return '<p style="margin:0;color:#6b7280;">(sin comentario)</p>';
-  }
-  return `
-        <div style="padding:10px 12px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;">
-          <div style="font-size:12px;color:#6b7280;margin-bottom:4px;">${escapeHtml(e.timestamp || 'Sin fecha')}</div>
-          <div style="font-size:13px;color:#111827;white-space:pre-wrap;">${escapeHtml(e.text)}</div>
-        </div>`;
 }
 
 function formatGestionOsegText(gestion) {
@@ -543,149 +561,243 @@ function gestionVitacoraHtmlRows(incident) {
   return rows;
 }
 
-function incidentSummaryRows(incident) {
+function commentList(incident) {
+  if (Array.isArray(incident.commentHistory) && incident.commentHistory.length) {
+    return incident.commentHistory;
+  }
+  const latest = resolveLatestCommentEntry(incident);
+  return latest?.text ? [latest] : [];
+}
+
+function commentsText(incident) {
+  const list = commentList(incident);
+  if (!list.length) return '  (sin comentarios)';
+  return list
+    .map((c) => {
+      const meta = [c.timestamp || 'Sin fecha', text(c.author)].filter(Boolean).join(' · ');
+      return `  [${meta}]\n${String(c.text).replace(/^/gm, '    ')}`;
+    })
+    .join('\n\n');
+}
+
+function commentsHtml(incident) {
+  const list = commentList(incident);
+  if (!list.length) {
+    return '<p style="margin:0;color:#6b7280;font-size:13px;">Sin comentarios registrados.</p>';
+  }
+  return list
+    .map((c) => {
+      const meta = [c.timestamp || 'Sin fecha', text(c.author)].filter(Boolean).join(' · ');
+      return `
+        <div style="margin:0 0 8px;padding:10px 12px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;">
+          <div style="font-size:12px;color:#6b7280;margin-bottom:4px;">${escapeHtml(meta)}</div>
+          <div style="font-size:13px;color:#111827;white-space:pre-wrap;">${escapeHtml(c.text)}</div>
+        </div>`;
+    })
+    .join('');
+}
+
+function statusHistoryList(incident) {
+  return Array.isArray(incident.statusHistory) ? incident.statusHistory : [];
+}
+
+function statusChangeLabel(h) {
+  return h.from ? `${h.from} → ${h.to}` : `Registrado como ${h.to}`;
+}
+
+function statusHistoryText(incident) {
+  const list = statusHistoryList(incident);
+  if (!list.length) return '  (sin cambios de estado)';
+  return list
+    .map((h) => `  ${formatDateTime(h.changedAt)}  ${statusChangeLabel(h)}${h.user ? `  (${h.user})` : ''}`)
+    .join('\n');
+}
+
+function statusHistoryHtml(incident) {
+  const list = statusHistoryList(incident);
+  if (!list.length) {
+    return '<p style="margin:0;color:#6b7280;font-size:13px;">Sin cambios de estado registrados.</p>';
+  }
+  const head = ['Fecha', 'Cambio', 'Usuario']
+    .map((h) => `<th align="left" style="padding:8px 12px;background:#f1f5f9;color:#374151;font-size:12px;border:1px solid #e5e7eb;">${h}</th>`)
+    .join('');
+  const body = list
+    .map(
+      (h) => `
+          <tr>
+            <td style="${VALUE_STYLE}white-space:nowrap;">${escapeHtml(formatDateTime(h.changedAt))}</td>
+            <td style="${VALUE_STYLE}">${escapeHtml(statusChangeLabel(h))}</td>
+            <td style="${VALUE_STYLE}">${escapeHtml(dash(h.user))}</td>
+          </tr>`,
+    )
+    .join('');
+  return `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;"><tr>${head}</tr>${body}</table>`;
+}
+
+function caseRows(incident) {
   const ts = formatDateTime(incident.timestamp);
   const rows = [
-    ['ID incidente', incident.id || '—'],
-    ['ID evento', incident.event_id || '—'],
-    ['Tipo de evento', incident.type || '—'],
-    ['Prioridad', incident.priority || '—'],
-    ['Estado', incident.status || '—'],
-    ['Fecha/Hora registro', ts],
+    ['Tipo de evento', dash(incident.type)],
+    ['Prioridad', dash(incident.priority)],
+    ['Estado', dash(incident.status)],
+    ['Origen', dash(incident.origin)],
+    ['Operador', dash(incident.operator)],
+    ['Teléfono (ANI)', dash(incident.ani || incident.phone)],
   ];
-
+  const locationPhone = text(incident.locationPhoneNumber);
+  if (locationPhone && locationPhone.toUpperCase() !== 'N/A') {
+    rows.push(['Teléfono ubicación (SMS/WhatsApp)', locationPhone]);
+  }
+  rows.push(['Fecha/hora de registro', ts]);
   if (incident.updatedAt) {
     const updated = formatDateTime(incident.updatedAt);
-    if (updated !== ts) {
-      rows.push(['Última actualización', updated]);
-    }
+    if (updated !== ts) rows.push(['Última actualización', updated]);
   }
-
   if (['Cerrado', 'Cancelado', 'Resuelto'].includes(incident.status)) {
-    rows.push([
-      'Fecha/Hora de cierre (estimada)',
-      incident.closedAt ? formatDateTime(incident.closedAt) : '—',
-    ]);
+    rows.push(['Fecha/hora de cierre', incident.closedAt ? formatDateTime(incident.closedAt) : '—']);
   }
-
-  const locationPhone = (() => {
-    const v = String(incident.locationPhoneNumber ?? '').trim();
-    if (!v || v.toUpperCase() === 'N/A') return 'N/A';
-    return v;
-  })();
-
-  rows.push(
-    ['Operador', incident.operator || '—'],
-    ['Origen', incident.origin || '—'],
-    ['ANI', incident.ani || incident.phone || '—'],
-    ['Teléfono ubicación (SMS/WhatsApp)', locationPhone],
-    ['Ubicación', incident.location || '—'],
-    ['Departamento (Ubicación del Incidente)', incident.departmentName || '—'],
-    ['Municipio / ciudad (Ubicación del Incidente)', incident.municipalityName || '—'],
-    ['Coordenadas', `${incident.lat ?? '—'}, ${incident.lng ?? '—'}`],
-  );
-
   return rows;
 }
 
+function hasCoords(incident) {
+  return (
+    incident.lat != null &&
+    incident.lng != null &&
+    Number.isFinite(Number(incident.lat)) &&
+    Number.isFinite(Number(incident.lng))
+  );
+}
+
+function locationRows(incident) {
+  return [
+    ['Dirección', dash(incident.location)],
+    ['Departamento', dash(incident.departmentName)],
+    ['Municipio / ciudad', dash(incident.municipalityName)],
+    ['Coordenadas', hasCoords(incident) ? `${incident.lat}, ${incident.lng}` : '—'],
+  ];
+}
+
+function mapsUrl(incident) {
+  return `https://www.google.com/maps?q=${encodeURIComponent(`${incident.lat},${incident.lng}`)}`;
+}
+
+function textSection(title, body) {
+  return `\n${title.toUpperCase()}\n${'-'.repeat(title.length)}\n${body}\n`;
+}
+
+function rowsText(rows) {
+  return rows.map(([label, value]) => `  ${`${label}:`.padEnd(32)} ${value}`).join('\n');
+}
+
 function formatIncidentBodyText(incident) {
-  const peopleList = incident.involvedPeople || [];
-  const vehicleList = incident.involvedVehicles || [];
-  const people = peopleList.map((p, i) => formatPersonText(p, i + 1)).join('\n') || '  (ninguna)';
-  const vehicles =
-    vehicleList.map((v, i) => formatVehicleText(v, i + 1)).join('\n') || '  (ninguno)';
-  const audit = formatAuditText(incident.auditLogs || []);
-
-  const header = incidentSummaryRows(incident)
-    .map(([label, value]) => `${label.padEnd(22)} ${value}`)
+  const people = incident.involvedPeople || [];
+  const places = incident.involvedPlaces || [];
+  const vehicles = incident.involvedVehicles || [];
+  const gestion = gestionVitacoraRows(incident)
+    .map(([label, value]) => `  ${label}:\n${String(value).replace(/^/gm, '    ')}`)
     .join('\n');
-  const gestionRows = gestionVitacoraRows(incident)
-    .map(([label, value]) => `\n${label}:\n${value}`)
-    .join('');
+  const coordsLine = hasCoords(incident) ? `\n  Ver en mapa: ${mapsUrl(incident)}` : '';
 
+  return [
+    `Notificación de incidente ${incident.id || ''} — IMS NOVA`,
+    `Bitácora del caso · Registrado ${formatDateTime(incident.timestamp)}`,
+    textSection('Datos del caso', rowsText(caseRows(incident))),
+    textSection('Ubicación', rowsText(locationRows(incident)) + coordsLine),
+    textSection(
+      `Solicitantes (${people.length})`,
+      formatListText(people, personTitle, personFields, '(ninguno)'),
+    ),
+    textSection(
+      `Lugares asociados (${places.length})`,
+      formatListText(places, placeTitle, placeFields, '(ninguno)'),
+    ),
+    textSection(
+      `Vehículos asociados (${vehicles.length})`,
+      formatListText(vehicles, vehicleTitle, vehicleFields, '(ninguno)'),
+    ),
+    gestion ? textSection('Gestión', gestion) : '',
+    textSection(`Historial de estados (${statusHistoryList(incident).length})`, statusHistoryText(incident)),
+    textSection(`Comentarios (${commentList(incident).length})`, commentsText(incident)),
+    textSection('Último cambio registrado', formatAuditText(incident.auditLogs || [])),
+    '---',
+    'Mensaje generado automáticamente por IMS NOVA.',
+    'AVISO DE CONFIDENCIALIDAD Y LEGALIDAD:',
+    'Este correo contiene información confidencial de uso exclusivo para los destinatarios autorizados.',
+  ]
+    .filter(Boolean)
+    .join('\n')
+    .trim();
+}
+
+const SECTION_TITLE_STYLE =
+  'padding:16px 0 8px;font-size:13px;font-weight:700;color:#4338ca;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #e0e7ff;';
+const LABEL_STYLE =
+  'width:220px;padding:8px 12px;background:#f8fafc;color:#374151;font-weight:600;font-size:13px;border:1px solid #e5e7eb;vertical-align:top;';
+const VALUE_STYLE =
+  'padding:8px 12px;background:#ffffff;color:#111827;font-size:13px;border:1px solid #e5e7eb;vertical-align:top;';
+
+function sectionHtml(title, innerHtml) {
   return `
-Notificación de incidente — IMS NOVA
-Vitácora completa del caso
+    <tr><td colspan="2" style="${SECTION_TITLE_STYLE}">${escapeHtml(title)}</td></tr>
+    <tr><td colspan="2" style="padding:8px 0 4px;">${innerHtml}</td></tr>`;
+}
 
-${header}
-${gestionRows}
+function rowsTableHtml(rows, rawValues = false) {
+  const body = rows
+    .map(
+      ([label, value]) => `
+          <tr>
+            <td style="${LABEL_STYLE}">${escapeHtml(label)}</td>
+            <td style="${VALUE_STYLE}">${rawValues ? value : escapeHtml(value)}</td>
+          </tr>`,
+    )
+    .join('');
+  return `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;">${body}</table>`;
+}
 
-Comentario (último registrado):
-${formatLatestCommentText(incident)}
-
-Personas involucradas:
-${people}
-
-Vehículos involucrados:
-${vehicles}
-
-Último cambio registrado:
-${audit}
-
----
-Mensaje generado automáticamente por IMS NOVA.
-AVISO DE CONFIDENCIALIDAD Y LEGALIDAD:
-Este correo contiene información confidencial de uso exclusivo para los destinatarios autorizados.
-`.trim();
+function badgeHtml(label, bg, fg) {
+  return `<span style="display:inline-block;margin:0 6px 6px 0;padding:3px 10px;border-radius:999px;background:${bg};color:${fg};font-size:12px;font-weight:600;">${escapeHtml(label)}</span>`;
 }
 
 function formatIncidentBodyHtml(incident) {
   const ts = formatDateTime(incident.timestamp);
-  const people =
-    (incident.involvedPeople || []).map(formatPersonHtml).join('') || '<li>(ninguna)</li>';
-  const vehicles =
-    (incident.involvedVehicles || []).map(formatVehicleHtml).join('') || '<li>(ninguno)</li>';
-  const auditHtml = formatAuditHtml(incident.auditLogs || []);
-  const rows = incidentSummaryRows(incident);
+  const people = incident.involvedPeople || [];
+  const places = incident.involvedPlaces || [];
+  const vehicles = incident.involvedVehicles || [];
 
-  const tableRows = rows
-    .map(
-      ([label, value]) => `
-        <tr>
-          <td style="width:220px;padding:10px 12px;background:#f8fafc;color:#111827;font-weight:600;border:1px solid #e5e7eb;">${escapeHtml(label)}:</td>
-          <td style="padding:10px 12px;background:#ffffff;color:#111827;border:1px solid #e5e7eb;">${escapeHtml(value)}</td>
-        </tr>`,
-    )
-    .join('');
+  const location = locationRows(incident).map(([label, value]) => [label, escapeHtml(value)]);
+  if (hasCoords(incident)) {
+    location[location.length - 1][1] +=
+      ` &nbsp;<a href="${escapeHtml(mapsUrl(incident))}" style="color:#4f46e5;">Ver en mapa</a>`;
+  }
 
-  const gestionTableRows = gestionVitacoraHtmlRows(incident)
-    .map(
-      ([label, valueHtml]) => `
-        <tr>
-          <td style="width:220px;padding:10px 12px;background:#f8fafc;color:#111827;font-weight:600;border:1px solid #e5e7eb;vertical-align:top;">${escapeHtml(label)}:</td>
-          <td style="padding:10px 12px;background:#ffffff;color:#111827;border:1px solid #e5e7eb;">${valueHtml}</td>
-        </tr>`,
-    )
+  const gestionRows = gestionVitacoraHtmlRows(incident);
+  const badges = [
+    incident.status && badgeHtml(`Estado: ${incident.status}`, '#e0e7ff', '#3730a3'),
+    incident.priority && badgeHtml(`Prioridad: ${incident.priority}`, '#fef3c7', '#92400e'),
+    incident.type && badgeHtml(incident.type, '#f1f5f9', '#334155'),
+  ]
+    .filter(Boolean)
     .join('');
 
   return `
 <div style="background:#f9fafb;padding:24px;font-family:Segoe UI,Arial,sans-serif;color:#111827;line-height:1.45;">
   <div style="max-width:900px;margin:0 auto;">
     <p style="margin:0 0 8px;font-size:15px;">Estimado especialista,</p>
-    <h2 style="margin:0 0 6px;font-size:22px;font-weight:700;">Notificación de incidente ${escapeHtml(incident.id || '')}</h2>
-    <p style="margin:0 0 14px;font-size:13px;color:#4b5563;">Vitácora completa · Registrado ${escapeHtml(ts)}</p>
-    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;margin-bottom:16px;border:1px solid #e5e7eb;">
-      ${tableRows}
-      ${gestionTableRows}
-      <tr>
-        <td style="padding:10px 12px;background:#f8fafc;color:#111827;font-weight:600;border:1px solid #e5e7eb;vertical-align:top;">Comentario (último):</td>
-        <td style="padding:10px 12px;background:#ffffff;color:#111827;border:1px solid #e5e7eb;">${formatLatestCommentHtml(incident)}</td>
-      </tr>
-      <tr>
-        <td style="padding:10px 12px;background:#f8fafc;color:#111827;font-weight:600;border:1px solid #e5e7eb;vertical-align:top;">Personas involucradas:</td>
-        <td style="padding:10px 12px;background:#ffffff;color:#111827;border:1px solid #e5e7eb;">
-          <ul style="margin:0;padding-left:18px;">${people}</ul>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:10px 12px;background:#f8fafc;color:#111827;font-weight:600;border:1px solid #e5e7eb;vertical-align:top;">Vehículos involucrados:</td>
-        <td style="padding:10px 12px;background:#ffffff;color:#111827;border:1px solid #e5e7eb;">
-          <ul style="margin:0;padding-left:18px;">${vehicles}</ul>
-        </td>
-      </tr>
+    <h2 style="margin:0 0 4px;font-size:22px;font-weight:700;">Notificación de incidente ${escapeHtml(incident.id || '')}</h2>
+    <p style="margin:0 0 10px;font-size:13px;color:#4b5563;">Bitácora del caso · Registrado ${escapeHtml(ts)}</p>
+    <div style="margin-bottom:6px;">${badges}</div>
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;">
+      ${sectionHtml('Datos del caso', rowsTableHtml(caseRows(incident)))}
+      ${sectionHtml('Ubicación', rowsTableHtml(location, true))}
+      ${sectionHtml(`Solicitantes (${people.length})`, formatListHtml(people, personTitle, personFields, 'Sin solicitantes registrados.'))}
+      ${sectionHtml(`Lugares asociados (${places.length})`, formatListHtml(places, placeTitle, placeFields, 'Sin lugares registrados.'))}
+      ${sectionHtml(`Vehículos asociados (${vehicles.length})`, formatListHtml(vehicles, vehicleTitle, vehicleFields, 'Sin vehículos registrados.'))}
+      ${gestionRows.length ? sectionHtml('Gestión', rowsTableHtml(gestionRows, true)) : ''}
+      ${sectionHtml(`Historial de estados (${statusHistoryList(incident).length})`, statusHistoryHtml(incident))}
+      ${sectionHtml(`Comentarios (${commentList(incident).length})`, commentsHtml(incident))}
+      ${sectionHtml('Último cambio registrado', formatAuditHtml(incident.auditLogs || []))}
     </table>
-    <h3 style="margin:0 0 10px;font-size:16px;font-weight:700;color:#111827;">Último cambio registrado</h3>
-    ${auditHtml}
     <p style="margin:16px 0 4px;color:#4b5563;font-size:12px;">Mensaje generado automáticamente por IMS NOVA.</p>
     <p style="margin:0;color:#6b7280;font-size:11px;">AVISO DE CONFIDENCIALIDAD Y LEGALIDAD: Este correo contiene información confidencial de uso exclusivo para los destinatarios autorizados.</p>
   </div>

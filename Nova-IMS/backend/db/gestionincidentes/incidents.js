@@ -293,6 +293,59 @@ async function loadLatestComment(internalId) {
   };
 }
 
+const USER_FULL_NAME_SQL = `TRIM(CONCAT_WS(' ', u.Primer_Nombre, u.Segundo_Nombre, u.Primer_Apellido, u.Segundo_Apellido))`;
+
+async function loadCommentHistory(internalId) {
+  const [rows] = await pool.query(
+    `SELECT ci.Comentario, ci.FechaHora,
+            COALESCE(NULLIF(${USER_FULL_NAME_SQL}, ''), ci.ID_Usuario) AS author
+     FROM comentarios_incidentes ci
+     INNER JOIN incidentes i ON i.ID_incidente = ci.ID_Incidente
+     LEFT JOIN usuarios u ON u.ID_Usuario = ci.ID_Usuario AND u.ID_Agencia = ci.ID_Agencia
+     WHERE ci.ID_Incidente = ?
+       AND ci.FechaHora >= i.FechaHora
+     ORDER BY ci.FechaHora DESC, ci.ID_Comentario DESC`,
+    [internalId],
+  );
+  const seen = new Set();
+  const list = [];
+  for (const r of rows) {
+    for (const plain of splitCommentBlocks(r.Comentario)) {
+      const key = normalizeCommentKey(plain);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      list.push({
+        timestamp: formatCommentTimestamp(r.FechaHora) || null,
+        text: plain,
+        author: r.author || '',
+      });
+    }
+  }
+  return list;
+}
+
+async function loadStatusHistory(internalId) {
+  const [rows] = await pool.query(
+    `SELECT h.FechaHora AS changedAt,
+            ea.Nombre_estado AS fromStatus,
+            en.Nombre_estado AS toStatus,
+            COALESCE(NULLIF(${USER_FULL_NAME_SQL}, ''), h.ID_usuario) AS user
+     FROM historial_de_estado h
+     LEFT JOIN estadosincidentes ea ON ea.ID_estado = h.ID_estado_anterior
+     INNER JOIN estadosincidentes en ON en.ID_estado = h.ID_estado_nuevo
+     LEFT JOIN usuarios u ON u.ID_Usuario = h.ID_usuario AND u.ID_Agencia = h.ID_Agencia
+     WHERE h.ID_incidente = ?
+     ORDER BY h.FechaHora ASC, h.ID_historial ASC`,
+    [internalId],
+  );
+  return rows.map((r) => ({
+    changedAt: r.changedAt,
+    from: r.fromStatus ? mapStatusFromGi(r.fromStatus) : '',
+    to: mapStatusFromGi(r.toStatus),
+    user: r.user || '',
+  }));
+}
+
 function mapIncidentRow(r, extras = {}) {
   return {
     ...r,
@@ -1571,6 +1624,8 @@ module.exports = {
   hydrateIncidents,
   loadComments,
   loadLatestComment,
+  loadCommentHistory,
+  loadStatusHistory,
   mapPriorityFromGi,
   mapStatusFromGi,
   locationChannelToGi,
