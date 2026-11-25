@@ -4,5 +4,5 @@ export const environment = {
   googleMapsApiKey: '',
   publicShareBaseUrl: '',
   powerBiEmbedUrl:
-    'https://app.powerbi.com/reportEmbed?reportId=aeee2cb9-c712-43fe-a1de-951b83b311d4&autoAuth=true&ctid=7523edfc-25ac-4863-9fb0-bb3e9448ed87&actionBarEnabled=true&reportCopilotInEmbed=true',
+    'https://app.powerbi.com/reportEmbed?reportId=403d086a-3d02-40b8-baa5-5a870a4b3f80&autoAuth=true&ctid=7523edfc-25ac-4863-9fb0-bb3e9448ed87&actionBarEnabled=true&reportCopilotInEmbed=true',
 };
