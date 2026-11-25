@@ -17,7 +17,7 @@ function formatDurationSeconds(totalSeconds) {
   if (minutes < 60) return `${minutes} min`;
   const hours = Math.floor(minutes / 60);
   const remMinutes = minutes % 60;
-  if (hours < 48) {
+  if (hours < 24) {
     return remMinutes > 0 ? `${hours} h ${remMinutes} min` : `${hours} h`;
   }
   const days = Math.floor(hours / 24);
