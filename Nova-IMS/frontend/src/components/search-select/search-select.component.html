@@ -1,0 +1,44 @@
+<div class="search-select">
+  <input
+    type="text"
+    role="combobox"
+    autocomplete="off"
+    spellcheck="false"
+    [id]="inputId()"
+    [value]="text()"
+    [placeholder]="placeholder()"
+    [disabled]="isDisabled()"
+    [attr.aria-expanded]="open()"
+    [attr.aria-controls]="listId"
+    [attr.aria-activedescendant]="open() && filtered().length ? listId + '-' + active() : null"
+    aria-autocomplete="list"
+    class="search-select__input w-full rounded-md border border-gray-600 bg-gray-700 py-2 pl-3 pr-8 text-sm text-white focus:ring-indigo-500 disabled:opacity-50"
+    [class.border-red-500]="invalid()"
+    (focus)="onFocus($event)"
+    (click)="openList()"
+    (input)="onInput($event)"
+    (keydown)="onKeydown($event)"
+    (blur)="onBlur()"
+  />
+  <span class="material-icons search-select__chevron" aria-hidden="true">expand_more</span>
+  @if (open()) {
+    <ul class="search-select__list" role="listbox" [id]="listId" (mousedown)="$event.preventDefault()">
+      @for (option of filtered(); track option.id; let i = $index) {
+        <li
+          role="option"
+          [id]="listId + '-' + i"
+          class="search-select__item"
+          [class.search-select__item--active]="active() === i"
+          [class.search-select__item--selected]="isSelected(option)"
+          [attr.aria-selected]="isSelected(option)"
+          (mousedown)="$event.preventDefault(); choose(option)"
+          (mouseenter)="active.set(i)"
+        >
+          {{ option.name }}
+        </li>
+      } @empty {
+        <li class="search-select__empty">{{ query() ? 'Sin resultados para «' + query() + '»' : emptyText() }}</li>
+      }
+    </ul>
+  }
+</div>
