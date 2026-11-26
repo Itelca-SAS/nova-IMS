@@ -80,6 +80,7 @@ import { ProfilePhotoService } from '../../services/profile-photo.service';
 import { HttpClient } from '@angular/common/http';
 import { IncidentEmailModalComponent } from '../incident-email-modal/incident-email-modal.component';
 import { MedidasComponent } from '../medidas/medidas.component';
+import { SearchSelectComponent } from '../search-select/search-select.component';
 import { createMapPin, isGoogleMapsLoaded, MapPin } from '../../utils/google-maps-legacy';
 import {
   LOCATION_SEARCH_MIN_CHARS,
@@ -134,7 +135,7 @@ export interface LeaveConfirmChangeItem {
 @Component({
   selector: 'app-incident-list',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, IncidentEmailModalComponent, MedidasComponent],
+  imports: [CommonModule, ReactiveFormsModule, IncidentEmailModalComponent, MedidasComponent, SearchSelectComponent],
   templateUrl: './incident-list.component.html',
   styleUrls: ['./incident-list.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,

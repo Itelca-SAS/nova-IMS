@@ -1067,18 +1067,14 @@
                           class="block text-xs font-medium text-gray-400 mb-1"
                           >Departamento <span class="text-red-400">*</span></label
                         >
-                        <select
-                          [id]="'place-' + $index + '-departmentId'"
+                        <app-search-select
+                          [inputId]="'place-' + $index + '-departmentId'"
                           formControlName="departmentId"
-                          class="incident-select w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-indigo-500"
-                          [class.incident-select--placeholder]="involvedPlaceSelectEmpty($index, 'departmentId')"
-                          [class.border-red-500]="placeRequiredError($index, 'departmentId')"
-                        >
-                          <option value="">Seleccione departamento…</option>
-                          @for (dept of departments(); track dept.id) {
-                            <option [value]="dept.id">{{ dept.name }}</option>
-                          }
-                        </select>
+                          [options]="departments()"
+                          placeholder="Escriba o seleccione departamento…"
+                          emptyText="No hay departamentos"
+                          [invalid]="placeRequiredError($index, 'departmentId')"
+                        />
                         @if (placeRequiredError($index, 'departmentId')) {
                           <p class="text-red-400 text-[11px] mt-1">Este campo es obligatorio.</p>
                         }
@@ -1089,25 +1085,19 @@
                           class="block text-xs font-medium text-gray-400 mb-1"
                           >Municipio <span class="text-red-400">*</span></label
                         >
-                        <select
-                          [id]="'place-' + $index + '-municipalityId'"
+                        <app-search-select
+                          [inputId]="'place-' + $index + '-municipalityId'"
                           formControlName="municipalityId"
-                          [disabled]="!placeGroup.get('departmentId')?.value"
-                          class="incident-select w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 disabled:opacity-50"
-                          [class.incident-select--placeholder]="involvedPlaceSelectEmpty($index, 'municipalityId')"
-                          [class.border-red-500]="placeRequiredError($index, 'municipalityId')"
-                        >
-                          <option value="">
-                            @if (!placeGroup.get('departmentId')?.value) {
-                              Seleccione primero un departamento
-                            } @else {
-                              Seleccione municipio…
-                            }
-                          </option>
-                          @for (mun of placeMunicipalitiesFor($index); track mun.id) {
-                            <option [value]="mun.id">{{ mun.name }}</option>
-                          }
-                        </select>
+                          [options]="placeMunicipalitiesFor($index)"
+                          [locked]="!placeGroup.get('departmentId')?.value"
+                          [placeholder]="
+                            placeGroup.get('departmentId')?.value
+                              ? 'Escriba o seleccione municipio…'
+                              : 'Seleccione primero un departamento'
+                          "
+                          emptyText="No hay municipios"
+                          [invalid]="placeRequiredError($index, 'municipalityId')"
+                        />
                         @if (placeRequiredError($index, 'municipalityId')) {
                           <p class="text-red-400 text-[11px] mt-1">Este campo es obligatorio.</p>
                         }
